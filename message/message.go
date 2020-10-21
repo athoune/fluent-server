@@ -2,5 +2,3 @@
 package message
 
 type Message []interface{}
-
-type Size uint32

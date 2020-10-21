@@ -44,24 +44,14 @@ func (s *Server) handler(conn net.Conn) {
 		}
 		if msgp.IsNil(buf) {
 			buf = buf[1:]
+			fmt.Println("Hearthbeat")
 			continue
 		}
 		buf, err = m.UnmarshalMsg(buf)
 		if err != nil {
-			_, ok := err.(msgp.TypeError)
-			if !ok {
-				log.Println("read error", err)
-				return
-			}
-			var size message.Size
-			buf, err = size.UnmarshalMsg(buf)
-			if err != nil {
-				log.Println("read error", err)
-				return
-			}
-			fmt.Println(size)
-		} else {
-			fmt.Println(m)
+			log.Println("read error", err)
+			return
 		}
+		fmt.Println(m)
 	}
 }
