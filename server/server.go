@@ -84,6 +84,31 @@ func (s *Server) handler(conn net.Conn) {
 			switch t.Kind() {
 			case reflect.Array:
 				fmt.Println("a batch of events")
+				for _, blob := range m[1].([]interface{}) {
+					var evt []interface{}
+					evt, ok = blob.([]interface{})
+					if !ok {
+						fmt.Println("bad event format:", blob)
+						return
+					}
+					if len(evt) != 2 {
+						fmt.Println("bad event size:", evt)
+						return
+					}
+					var time uint32
+					time, ok = evt[0].(uint32)
+					if !ok {
+						fmt.Println("Bad time format:", evt[0])
+						return
+					}
+					var record map[string]interface{}
+					record, ok := evt[1].(map[string]interface{})
+					if !ok {
+						fmt.Println("Bad record format:", evt[1])
+						return
+					}
+					s.doEvent(type_, time, record, nil)
+				}
 			case reflect.Uint32:
 				var record map[string]interface{}
 				record, ok = m[2].(map[string]interface{})
