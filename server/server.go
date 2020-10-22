@@ -6,8 +6,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/factorysh/fluent-server/message"
-	"github.com/tinylib/msgp/msgp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 func New() *Server {
@@ -34,24 +33,28 @@ func (s *Server) ListenAndServe(address string) error {
 
 func (s *Server) handler(conn net.Conn) {
 	defer conn.Close()
-	buf := make([]byte, 2048)
-	var m message.Message
+	decoder := msgpack.NewDecoder(conn)
+	var m []interface{}
 	for {
-		_, err := conn.Read(buf)
-		if err != nil && err != io.EOF {
+		blob, err := decoder.DecodeInterface()
+		if err != nil {
+			if err == io.EOF {
+				return
+			}
 			log.Println("read error", err)
 			return
 		}
-		if msgp.IsNil(buf) {
-			buf = buf[1:]
+		if blob == nil {
 			fmt.Println("Hearthbeat")
 			continue
 		}
-		buf, err = m.UnmarshalMsg(buf)
-		if err != nil {
-			log.Println("read error", err)
+		var ok bool
+		m, ok = blob.([]interface{})
+		if !ok {
+			log.Println("Not an array", blob)
 			return
 		}
+
 		fmt.Println(m)
 	}
 }
