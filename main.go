@@ -1,9 +1,15 @@
 package main
 
-import "github.com/factorysh/fluent-server/server"
+import (
+	"fmt"
+
+	"github.com/factorysh/fluent-server/server"
+)
 
 func main() {
 
-	s := server.New()
+	s := server.New(func(tag string, time uint32, record map[string]interface{}, option map[string]interface{}) {
+		fmt.Println(tag, time, record, option)
+	})
 	s.ListenAndServe("localhost:24224")
 }

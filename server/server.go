@@ -5,15 +5,19 @@ import (
 	"io"
 	"log"
 	"net"
+	"reflect"
 
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-func New() *Server {
-	return &Server{}
+func New(eventHandler func(tag string, time uint32, record map[string]interface{}, option map[string]interface{})) *Server {
+	return &Server{
+		eventHandler: eventHandler,
+	}
 }
 
 type Server struct {
+	eventHandler func(tag string, time uint32, record map[string]interface{}, option map[string]interface{})
 }
 
 func (s *Server) ListenAndServe(address string) error {
@@ -54,7 +58,58 @@ func (s *Server) handler(conn net.Conn) {
 			log.Println("Not an array", blob)
 			return
 		}
-
-		fmt.Println(m)
+		if len(m) == 0 {
+			log.Println("Empty array", blob)
+			return
+		}
+		var type_ string
+		type_, ok = m[0].(string)
+		if !ok {
+			log.Println("Type is not a string", m[0])
+			return
+		}
+		switch type_ {
+		case "HELO":
+			s.doHelo()
+		case "PING":
+			s.doPing()
+		case "PONG":
+			s.doPong()
+		default:
+			if len(m) < 2 {
+				log.Println("Too short", m)
+				return
+			}
+			t := reflect.TypeOf(m[1])
+			switch t.Kind() {
+			case reflect.Array:
+				fmt.Println("a batch of events")
+			case reflect.Uint32:
+				var record map[string]interface{}
+				record, ok = m[2].(map[string]interface{})
+				if !ok {
+					fmt.Println("Bad record type:", m[2])
+					return
+				}
+				if len(m) == 3 {
+					s.doEvent(type_, m[1].(uint32), record, nil)
+				} else {
+					var option map[string]interface{}
+					option, ok = m[3].(map[string]interface{})
+					if !ok {
+						fmt.Println("Bad option type:", m[3])
+						return
+					}
+					s.doEvent(type_, m[1].(uint32), record, option)
+				}
+			}
+		}
 	}
+}
+
+func (s *Server) doHelo() {}
+func (s *Server) doPing() {}
+func (s *Server) doPong() {}
+func (s *Server) doEvent(tag string, time uint32, record map[string]interface{}, option map[string]interface{}) {
+	s.eventHandler(tag, time, record, option)
 }
