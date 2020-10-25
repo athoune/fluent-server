@@ -10,14 +10,14 @@ import (
 	"github.com/vmihailenco/msgpack/v5/msgpcode"
 )
 
-func New(eventHandler func(tag string, time uint32, record map[string]interface{}, option map[string]interface{})) *Server {
+func New(eventHandler func(tag string, time uint32, record map[string]interface{}, option map[string]interface{}) error) *Server {
 	return &Server{
 		eventHandler: eventHandler,
 	}
 }
 
 type Server struct {
-	eventHandler func(tag string, time uint32, record map[string]interface{}, option map[string]interface{})
+	eventHandler func(tag string, time uint32, record map[string]interface{}, option map[string]interface{}) error
 }
 
 func (s *Server) ListenAndServe(address string) error {
@@ -40,7 +40,6 @@ func (s *Server) oneMessage(decoder *msgpack.Decoder) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("code", code)
 	if code == msgpcode.Nil {
 		fmt.Println("Hearthbeat")
 		return nil
@@ -52,7 +51,6 @@ func (s *Server) oneMessage(decoder *msgpack.Decoder) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("len", l)
 	if l == 0 {
 		return errors.New("Empty array")
 	}
@@ -61,10 +59,8 @@ func (s *Server) oneMessage(decoder *msgpack.Decoder) error {
 	}
 	type_, err := decoder.DecodeString()
 	if err != nil {
-		fmt.Println("Paf", err)
 		return err
 	}
-	fmt.Println("Type:", type_)
 	switch type_ {
 	case "HELO":
 		s.doHelo()
@@ -73,13 +69,13 @@ func (s *Server) oneMessage(decoder *msgpack.Decoder) error {
 	case "PONG":
 		s.doPong()
 	default:
-		return s.doMessage(decoder, l)
+		return s.doMessage(type_, decoder, l)
 	}
 	return nil
 
 }
 
-func (s *Server) doMessage(decoder *msgpack.Decoder, l int) error {
+func (s *Server) doMessage(tag string, decoder *msgpack.Decoder, l int) error {
 	if l < 2 {
 		return errors.New("Too short")
 	}
@@ -93,11 +89,25 @@ func (s *Server) doMessage(decoder *msgpack.Decoder, l int) error {
 	case msgpcode.IsBin(firstCode):
 
 	case firstCode == msgpcode.Uint32:
+		if l > 4 {
+			return fmt.Errorf("Message too large: %d", l)
+		}
 		ts, err := decoder.DecodeUint32()
 		if err != nil {
 			return err
 		}
-		fmt.Println("ts", ts)
+		record, err := decoder.DecodeMap()
+		if err != nil {
+			return err
+		}
+		if l == 4 {
+			option, err := decoder.DecodeMap()
+			if err != nil {
+				return err
+			}
+			return s.doEvent(tag, ts, record, option)
+		}
+		return s.doEvent(tag, ts, record, nil)
 	default:
 		return fmt.Errorf("Bad code %v", firstCode)
 	}
@@ -113,65 +123,12 @@ func (s *Server) handler(conn net.Conn) {
 			log.Println(err)
 			return
 		}
-		/*
-				if len(m) < 2 {
-					log.Println("Too short", m)
-					return
-				}
-				if codes.IsFixedArray(m[1][0]) {
-					fmt.Println("a batch of events")
-					for _, blob := range m[1].([]interface{}) {
-						var evt []interface{}
-						evt, ok = blob.([]interface{})
-						if !ok {
-							fmt.Println("bad event format:", blob)
-							return
-						}
-						if len(evt) != 2 {
-							fmt.Println("bad event size:", evt)
-							return
-						}
-						var time uint32
-						time, ok = evt[0].(uint32)
-						if !ok {
-							fmt.Println("Bad time format:", evt[0])
-							return
-						}
-						var record map[string]interface{}
-						record, ok := evt[1].(map[string]interface{})
-						if !ok {
-							fmt.Println("Bad record format:", evt[1])
-							return
-						}
-						s.doEvent(type_, time, record, nil)
-					}
-				case reflect.Uint32:
-					var record map[string]interface{}
-					record, ok = m[2].(map[string]interface{})
-					if !ok {
-						fmt.Println("Bad record type:", m[2])
-						return
-					}
-					if len(m) == 3 {
-						s.doEvent(type_, m[1].(uint32), record, nil)
-					} else {
-						var option map[string]interface{}
-						option, ok = m[3].(map[string]interface{})
-						if !ok {
-							fmt.Println("Bad option type:", m[3])
-							return
-						}
-						s.doEvent(type_, m[1].(uint32), record, option)
-					}
-				}
-			}
-		*/
 	}
 }
 
 func (s *Server) doHelo() {}
 func (s *Server) doPing() {}
 func (s *Server) doPong() {}
-func (s *Server) doEvent(tag string, time uint32, record map[string]interface{}, option map[string]interface{}) {
-	s.eventHandler(tag, time, record, option)
+func (s *Server) doEvent(tag string, time uint32, record map[string]interface{}, option map[string]interface{}) error {
+	return s.eventHandler(tag, time, record, option)
 }
