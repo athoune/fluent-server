@@ -1,6 +1,8 @@
-from fluent import sender
+from fluent.sender import FluentSender
 
-logger = sender.FluentSender('app', host='localhost', port=24224)
+logger = FluentSender("app", host="localhost", port=24224)
 
-logger.emit('follow', {'from': 'userA', 'to': 'userB'})
-logger.emit('bof', dict(beuha="aussi", age=42))
+logger.emit("follow", {"from": "userA", "to": "userB"})
+logger.emit("bof", dict(beuha="aussi", age=42))
+
+logger.close()
