@@ -2,15 +2,22 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/factorysh/fluent-server/server"
 )
 
 func main() {
 
-	s := server.New(func(tag string, time uint32, record map[string]interface{}, option map[string]interface{}) error {
-		fmt.Println(tag, time, record, option)
+	s := server.New(func(tag string, ts time.Time, record map[string]interface{}) error {
+		fmt.Println(tag, ts, record)
 		return nil
 	})
-	s.ListenAndServe("localhost:24224")
+	l := os.Getenv("LISTEN")
+	if l == "" {
+		l = "localhost:24224"
+	}
+	fmt.Println("Listen", l)
+	s.ListenAndServe(l)
 }
