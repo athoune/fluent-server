@@ -33,6 +33,9 @@ func (f *FluentReader) Read(reader io.Reader) error {
 	for {
 		err := f.decodeMessage(decoder)
 		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
 			return err
 		}
 	}
