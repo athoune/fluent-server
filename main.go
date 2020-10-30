@@ -10,7 +10,7 @@ import (
 
 func main() {
 
-	s := server.New(func(tag string, ts time.Time, record map[string]interface{}) error {
+	s := server.New(func(tag string, ts *time.Time, record map[string]interface{}) error {
 		fmt.Println(tag, ts, record)
 		return nil
 	})

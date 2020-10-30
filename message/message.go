@@ -12,11 +12,11 @@ import (
 
 type Event struct {
 	tag    string
-	ts     time.Time
+	ts     *time.Time
 	record map[string]interface{}
 }
 
-type HandlerFunc func(tag string, time time.Time, record map[string]interface{}) error
+type HandlerFunc func(tag string, time *time.Time, record map[string]interface{}) error
 
 type FluentReader struct {
 	eventHandler HandlerFunc
@@ -84,6 +84,48 @@ func (f *FluentReader) decodeMessage(decoder *msgpack.Decoder, encoder *msgpack.
 	}
 }
 
+func decodeEntry(decoder *msgpack.Decoder) (*time.Time, map[string]interface{}, error) {
+	c, err := decoder.PeekCode()
+	if err != nil {
+		return nil, nil, err
+	}
+	if !msgpcode.IsFixedArray(c) {
+		return nil, nil, fmt.Errorf("Not an array : %v", c)
+	}
+	l, err := decoder.DecodeArrayLen()
+	if err != nil {
+		return nil, nil, err
+	}
+	if l != 2 {
+		return nil, nil, fmt.Errorf("Bad array length %v", l)
+	}
+	t, err := decoder.PeekCode()
+	if err != nil {
+		return nil, nil, err
+	}
+	var ts time.Time
+	switch {
+	case t == msgpcode.Uint32:
+		tRaw, err := decoder.DecodeUint32()
+		if err != nil {
+			return nil, nil, err
+		}
+		ts = time.Unix(int64(tRaw), 0)
+	case msgpcode.IsExt(t):
+		fmt.Println("Ext")
+
+	case msgpcode.IsFixedExt(t):
+		fmt.Println("FixedExt")
+	default:
+		return nil, nil, fmt.Errorf("Unknown type %v", t)
+	}
+	record, err := decoder.DecodeMap()
+	if err != nil {
+		return nil, nil, err
+	}
+	return &ts, record, nil
+}
+
 func (f *FluentReader) decodeEvent(decoder *msgpack.Decoder, encoder *msgpack.Encoder, tag string, l int) error {
 	if l < 2 {
 		return errors.New("Too short")
@@ -100,41 +142,7 @@ func (f *FluentReader) decodeEvent(decoder *msgpack.Decoder, encoder *msgpack.En
 		}
 		events := make([]Event, size)
 		for i := 0; i < size; i++ {
-			c, err := decoder.PeekCode()
-			if err != nil {
-				return err
-			}
-			if !msgpcode.IsFixedArray(c) {
-				return fmt.Errorf("Elem %d is not an array : %v", i, c)
-			}
-			l, err := decoder.DecodeArrayLen()
-			if err != nil {
-				return err
-			}
-			if l != 2 {
-				return fmt.Errorf("Bad array length %v", l)
-			}
-			t, err := decoder.PeekCode()
-			if err != nil {
-				return err
-			}
-			var ts time.Time
-			switch {
-			case t == msgpcode.Uint32:
-				tRaw, err := decoder.DecodeUint32()
-				if err != nil {
-					return err
-				}
-				ts = time.Unix(int64(tRaw), 0)
-			case msgpcode.IsExt(t):
-				fmt.Println("Ext")
-
-			case msgpcode.IsFixedExt(t):
-				fmt.Println("FixedExt")
-			default:
-				return fmt.Errorf("Unknown type %v", t)
-			}
-			record, err := decoder.DecodeMap()
+			ts, record, err := decodeEntry(decoder)
 			if err != nil {
 				return err
 			}
@@ -193,7 +201,8 @@ func (f *FluentReader) decodeEvent(decoder *msgpack.Decoder, encoder *msgpack.En
 			}
 			fmt.Println("option", option)
 		}
-		return f.eventHandler(tag, time.Unix(int64(ts), 0), record)
+		tz := time.Unix(int64(ts), 0)
+		return f.eventHandler(tag, &tz, record)
 	default:
 		return fmt.Errorf("Bad code %v", firstCode)
 	}

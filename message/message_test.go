@@ -34,7 +34,7 @@ func TestHearthbeat(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
-	f := New(func(tag string, time time.Time, record map[string]interface{}) error {
+	f := New(func(tag string, time *time.Time, record map[string]interface{}) error {
 		assert.Equal(t, "beuha.aussi", tag)
 		assert.Equal(t, int64(42), record["age"])
 		wg.Done()
@@ -69,7 +69,7 @@ func TestForwardMode(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 
-	f := New(func(tag string, time time.Time, record map[string]interface{}) error {
+	f := New(func(tag string, time *time.Time, record map[string]interface{}) error {
 		assert.Equal(t, "beuha.aussi", tag)
 		assert.Equal(t, int64(42), record["age"])
 		wg.Done()
