@@ -28,7 +28,11 @@ func TestHearthbeat(t *testing.T) {
 	}()
 
 	go func() {
-		b, err := msgpack.Marshal([]interface{}{
+
+		b, err := msgpack.Marshal(nil)
+		assert.NoError(t, err)
+		w.Write(b)
+		b, err = msgpack.Marshal([]interface{}{
 			"beuha.aussi",
 			uint32(4807),
 			map[string]interface{}{

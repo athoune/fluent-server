@@ -47,6 +47,10 @@ func (f *FluentReader) decodeMessage(decoder *msgpack.Decoder) error {
 		return err
 	}
 	if code == msgpcode.Nil {
+		err = decoder.DecodeNil()
+		if err != nil {
+			return err
+		}
 		fmt.Println("Hearthbeat")
 		return nil
 	}
