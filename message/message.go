@@ -28,10 +28,11 @@ func New(eventHandler HandlerFunc) *FluentReader {
 	}
 }
 
-func (f *FluentReader) Read(reader io.Reader) error {
-	decoder := msgpack.NewDecoder(reader)
+func (f *FluentReader) Listen(flux io.ReadWriter) error {
+	decoder := msgpack.NewDecoder(flux)
+	encoder := msgpack.NewEncoder(flux)
 	for {
-		err := f.decodeMessage(decoder)
+		err := f.decodeMessage(decoder, encoder)
 		if err != nil {
 			if err == io.EOF {
 				return nil
@@ -41,7 +42,7 @@ func (f *FluentReader) Read(reader io.Reader) error {
 	}
 }
 
-func (f *FluentReader) decodeMessage(decoder *msgpack.Decoder) error {
+func (f *FluentReader) decodeMessage(decoder *msgpack.Decoder, encoder *msgpack.Encoder) error {
 	code, err := decoder.PeekCode()
 	if err != nil {
 		return err
@@ -79,11 +80,11 @@ func (f *FluentReader) decodeMessage(decoder *msgpack.Decoder) error {
 	case "PONG":
 		return f.doPong()
 	default:
-		return f.decodeEvent(tag, decoder, l)
+		return f.decodeEvent(decoder, encoder, tag, l)
 	}
 }
 
-func (f *FluentReader) decodeEvent(tag string, decoder *msgpack.Decoder, l int) error {
+func (f *FluentReader) decodeEvent(decoder *msgpack.Decoder, encoder *msgpack.Encoder, tag string, l int) error {
 	if l < 2 {
 		return errors.New("Too short")
 	}
@@ -140,15 +141,31 @@ func (f *FluentReader) decodeEvent(tag string, decoder *msgpack.Decoder, l int) 
 			events[i] = Event{tag, ts, record}
 		}
 		var option map[string]interface{}
+		var chunk string
 		if l == 3 {
 			option, err = decoder.DecodeMap()
 			if err != nil {
 				return err
 			}
 			fmt.Println("Option", option)
+			chunkRaw, ok := option["chunk"]
+			if ok {
+				chunk, ok = chunkRaw.(string)
+				if !ok {
+					return fmt.Errorf("Bad chunk type: %v", chunkRaw)
+				}
+			}
 		}
 		for _, event := range events {
 			err = f.eventHandler(event.tag, event.ts, event.record)
+			if err != nil {
+				return err
+			}
+		}
+		if chunk != "" {
+			err = encoder.Encode(map[string]interface{}{
+				"ack": chunk,
+			})
 			if err != nil {
 				return err
 			}

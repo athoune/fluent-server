@@ -54,7 +54,7 @@ func (s *Server) ListenAndServe(address string) error {
 		fmt.Println("Hello", conn.RemoteAddr())
 		go func() {
 			defer conn.Close()
-			err := s.reader.Read(conn)
+			err := s.reader.Listen(conn)
 			if err != nil {
 				log.Println(err)
 				return

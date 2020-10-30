@@ -10,8 +10,27 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+type mockupConn struct {
+	r io.Reader
+	w io.Writer
+}
+
+func newMockup() (client, server *mockupConn) {
+	rc, wc := io.Pipe()
+	rs, ws := io.Pipe()
+	return &mockupConn{rs, wc}, &mockupConn{rc, ws}
+}
+
+func (m *mockupConn) Read(p []byte) (n int, err error) {
+	return m.r.Read(p)
+}
+
+func (m *mockupConn) Write(p []byte) (n int, err error) {
+	return m.w.Write(p)
+}
+
 func TestHearthbeat(t *testing.T) {
-	r, w := io.Pipe()
+	client, server := newMockup()
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
@@ -23,14 +42,14 @@ func TestHearthbeat(t *testing.T) {
 	})
 
 	go func() {
-		err := f.Read(r)
+		err := f.Listen(server)
 		assert.NoError(t, err)
 	}()
 
 	go func() {
 		b, err := msgpack.Marshal(nil)
 		assert.NoError(t, err)
-		w.Write(b)
+		client.Write(b)
 		b, err = msgpack.Marshal([]interface{}{
 			"beuha.aussi",
 			uint32(4807),
@@ -40,15 +59,15 @@ func TestHearthbeat(t *testing.T) {
 			},
 		})
 		assert.NoError(t, err)
-		w.Write(b)
+		client.Write(b)
 	}()
 	wg.Wait()
 }
 
 func TestForwardMode(t *testing.T) {
-	r, w := io.Pipe()
+	client, server := newMockup()
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(2)
 
 	f := New(func(tag string, time time.Time, record map[string]interface{}) error {
 		assert.Equal(t, "beuha.aussi", tag)
@@ -58,7 +77,7 @@ func TestForwardMode(t *testing.T) {
 	})
 
 	go func() {
-		err := f.Read(r)
+		err := f.Listen(server)
 		assert.NoError(t, err)
 	}()
 
@@ -74,9 +93,20 @@ func TestForwardMode(t *testing.T) {
 					},
 				},
 			},
+			map[string]interface{}{
+				"chunk": "oulalah",
+			},
 		})
 		assert.NoError(t, err)
-		w.Write(b)
+		client.Write(b)
+		decoder := msgpack.NewDecoder(client)
+		var r map[string]interface{}
+		err = decoder.Decode(&r)
+		assert.NoError(t, err)
+		ack, ok := r["ack"]
+		assert.True(t, ok)
+		assert.Equal(t, "oulalah", ack)
+		wg.Done()
 	}()
 	wg.Wait()
 }
