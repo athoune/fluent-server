@@ -28,7 +28,6 @@ func TestHearthbeat(t *testing.T) {
 	}()
 
 	go func() {
-
 		b, err := msgpack.Marshal(nil)
 		assert.NoError(t, err)
 		w.Write(b)
@@ -38,6 +37,42 @@ func TestHearthbeat(t *testing.T) {
 			map[string]interface{}{
 				"name": "Bob",
 				"age":  42,
+			},
+		})
+		assert.NoError(t, err)
+		w.Write(b)
+	}()
+	wg.Wait()
+}
+
+func TestForwardMode(t *testing.T) {
+	r, w := io.Pipe()
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	f := New(func(tag string, time time.Time, record map[string]interface{}) error {
+		assert.Equal(t, "beuha.aussi", tag)
+		assert.Equal(t, int64(42), record["age"])
+		wg.Done()
+		return nil
+	})
+
+	go func() {
+		err := f.Read(r)
+		assert.NoError(t, err)
+	}()
+
+	go func() {
+		b, err := msgpack.Marshal([]interface{}{
+			"beuha.aussi",
+			[]interface{}{
+				[]interface{}{
+					uint32(4807),
+					map[string]interface{}{
+						"name": "Bob",
+						"age":  42,
+					},
+				},
 			},
 		})
 		assert.NoError(t, err)
