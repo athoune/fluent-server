@@ -1,6 +1,7 @@
 package message
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -112,7 +113,28 @@ func decodeEntry(decoder *msgpack.Decoder) (*time.Time, map[string]interface{}, 
 		}
 		ts = time.Unix(int64(tRaw), 0)
 	case msgpcode.IsExt(t):
-		fmt.Println("Ext")
+		id, len, err := decoder.DecodeExtHeader()
+		if err != nil {
+			return nil, nil, err
+		}
+		if id != 0 {
+			return nil, nil, fmt.Errorf("Unknown ext id %v", id)
+		}
+		if len != 8 {
+			return nil, nil, fmt.Errorf("Unknown ext id size %v", len)
+		}
+		b := make([]byte, len)
+		l, err := decoder.Buffered().Read(b)
+		if err != nil {
+			return nil, nil, err
+		}
+		if l != len {
+			return nil, nil, fmt.Errorf("Read error, wrong size %v", l)
+		}
+		// https://pkg.go.dev/mod/github.com/vmihailenco/msgpack/v5@v5.0.0-rc.3#RegisterExt
+		sec := binary.BigEndian.Uint32(b)
+		usec := binary.BigEndian.Uint32(b[4:])
+		ts = time.Unix(int64(sec), int64(usec))
 
 	case msgpcode.IsFixedExt(t):
 		fmt.Println("FixedExt")
