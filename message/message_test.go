@@ -36,7 +36,7 @@ func TestHearthbeat(t *testing.T) {
 
 	f := New(func(tag string, time *time.Time, record map[string]interface{}) error {
 		assert.Equal(t, "beuha.aussi", tag)
-		assert.Equal(t, int64(42), record["age"])
+		assert.Equal(t, int8(42), record["age"])
 		wg.Done()
 		return nil
 	})
@@ -71,7 +71,7 @@ func TestForwardMode(t *testing.T) {
 
 	f := New(func(tag string, time *time.Time, record map[string]interface{}) error {
 		assert.Equal(t, "beuha.aussi", tag)
-		assert.Equal(t, int64(42), record["age"])
+		assert.Equal(t, int8(42), record["age"])
 		wg.Done()
 		return nil
 	})
