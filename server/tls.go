@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 )
 
-func Config(caCrt, srvCrt, srvKey string) (*tls.Config, error) {
+func ConfigTLS(caCrt, srvCrt, srvKey string) (*tls.Config, error) {
 	certificate, err := tls.LoadX509KeyPair(srvCrt, srvKey)
 	if err != nil {
 		return nil, err

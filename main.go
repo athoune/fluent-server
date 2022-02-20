@@ -8,12 +8,24 @@ import (
 	"github.com/factorysh/fluent-server/server"
 )
 
-func main() {
+func handler(tag string, ts *time.Time, record map[string]interface{}) error {
+	fmt.Println(tag, ts, record)
+	return nil
+}
 
-	s := server.New(func(tag string, ts *time.Time, record map[string]interface{}) error {
-		fmt.Println(tag, ts, record)
-		return nil
-	})
+func main() {
+	var s *server.Server
+	caCrt := os.Getenv("CA_CRT")
+	if caCrt != "" {
+		cfg, err := server.ConfigTLS(caCrt, os.Getenv("SRV_CRT"), os.Getenv("SRV_KEY"))
+		if err != nil {
+			panic(err)
+		}
+		s = server.NewTLS(handler, cfg)
+	} else {
+		s = server.New(handler)
+	}
+
 	l := os.Getenv("LISTEN")
 	if l == "" {
 		l = "localhost:24224"
