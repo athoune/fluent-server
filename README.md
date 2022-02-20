@@ -1,4 +1,4 @@
 Fluent Server
 =============
 
-Just for pedagogical purpose.
+Listen stuff coming from fluent-bit or any fluentd hoses.
