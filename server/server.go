@@ -15,6 +15,15 @@ func New(handler message.HandlerFunc) *Server {
 	}
 }
 
+func NewTLS(handler message.HandlerFunc, cfg *tls.Config) *Server {
+	return &Server{
+		reader:    message.New(handler),
+		useUDP:    false,
+		useMTLS:   true,
+		tlsConfig: cfg,
+	}
+}
+
 type Server struct {
 	reader    *message.FluentReader
 	useUDP    bool
