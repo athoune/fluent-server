@@ -1,0 +1,16 @@
+{
+    "CN": "ca.factory.sh" ,
+    "key": {
+        "algo": "rsa",
+        "size": 2048
+    },
+    "names": [
+        {
+            "C": "FR",
+            "L": "Paris",
+            "O": "Factory",
+            "OU": "RD",
+            "ST": "IDF"
+        }
+    ]
+}
