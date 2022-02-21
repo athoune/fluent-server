@@ -1,5 +1,9 @@
 all: certs/ca-key.pem certs/server-key.pem certs/client-key.pem
 
+#
+# Certs
+#
+
 certs:
 	mkdir -p certs
 
@@ -21,6 +25,23 @@ certs/client-key.pem: certs
 		-config=ca-config.json \
 		-profile=client \
 		client.json | cfssljson -bare certs/client
+
+#
+#  Demo
+#
+
+start-server:
+	CA_CRT=./certs/ca.pem \
+	SRV_CRT=./certs/server.pem \
+	SRV_KEY=./certs/server-key.pem \
+	../bin/fluent-server
+
+start-fluent-bit:
+	fluent-bit -c fluentbit.cfg
+
+#
+# Clean
+#
 
 clean-ca:
 	rm -f certs/ca.*
