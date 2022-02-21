@@ -1,5 +1,8 @@
-build:
-	go build
+build: bin
+	go build -o bin/fluent-server
+
+bin:
+	mkdir -p bin
 
 venv:
 	python3 -m venv venv
