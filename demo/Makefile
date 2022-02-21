@@ -1,20 +1,34 @@
-all: ca-key.pem server-key.pem
+all: certs/ca-key.pem certs/server-key.pem certs/client-key.pem
 
-ca-key.pem:
-	cfssl gencert -initca ca.csr.json | cfssljson -bare ca
+certs:
+	mkdir -p certs
 
-server-key.pem:
+certs/ca-key.pem: certs
+	cfssl gencert -initca ca.json | cfssljson -bare certs/ca
+
+certs/server-key.pem: certs
 	cfssl gencert \
-		-ca=ca.pem \
-		-ca-key=ca-key.pem \
+		-ca=certs/ca.pem \
+		-ca-key=certs/ca-key.pem \
 		-config=ca-config.json \
 		-profile=server \
-		server.json | cfssljson -bare server
+		server.json | cfssljson -bare certs/server
+
+certs/client-key.pem: certs
+	cfssl gencert \
+		-ca=certs/ca.pem \
+		-ca-key=certs/ca-key.pem \
+		-config=ca-config.json \
+		-profile=server \
+		client.json | cfssljson -bare certs/client
 
 clean-ca:
-	rm -f ca.csr ca.crt ca.key
+	rm -f certs/ca.*
 
 clean-server:
-	rm -f server.csr server.crt server.key
+	rm -f certs/server.*
 
-clean: clean-ca clean-server
+clean-client:
+	rm -f certs/client.*
+
+clean: clean-ca clean-server clean-client
