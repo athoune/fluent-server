@@ -19,7 +19,7 @@ certs/client-key.pem: certs
 		-ca=certs/ca.pem \
 		-ca-key=certs/ca-key.pem \
 		-config=ca-config.json \
-		-profile=server \
+		-profile=client \
 		client.json | cfssljson -bare certs/client
 
 clean-ca:
