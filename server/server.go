@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net"
@@ -14,35 +15,55 @@ func New(handler message.HandlerFunc) *Server {
 	}
 }
 
+func NewTLS(handler message.HandlerFunc, cfg *tls.Config) *Server {
+	return &Server{
+		reader:    message.New(handler),
+		useUDP:    false,
+		useMTLS:   true,
+		tlsConfig: cfg,
+	}
+}
+
 type Server struct {
-	reader *message.FluentReader
+	reader    *message.FluentReader
+	useUDP    bool
+	useMTLS   bool
+	tlsConfig *tls.Config
 }
 
 func (s *Server) ListenAndServe(address string) error {
-	go func() {
-		a, err := net.ResolveUDPAddr("udp", address)
-		if err != nil {
-			panic(err)
-		}
-		listener, err := net.ListenUDP("udp", a)
-		if err != nil {
-			panic(err)
-		}
-		defer listener.Close()
-		buf := make([]byte, 1024)
-		for {
-			_, addr, err := listener.ReadFromUDP(buf)
+	if s.useUDP {
+		go func() {
+			a, err := net.ResolveUDPAddr("udp", address)
 			if err != nil {
-				fmt.Println(err)
-				return
+				panic(err)
 			}
-			re, _ := net.DialUDP("udp", nil, addr)
-			defer re.Close()
-			re.Write(buf)
-			fmt.Println("Pong")
-		}
-	}()
-	listener, err := net.Listen("tcp", address)
+			listener, err := net.ListenUDP("udp", a)
+			if err != nil {
+				panic(err)
+			}
+			defer listener.Close()
+			buf := make([]byte, 1024)
+			for {
+				_, addr, err := listener.ReadFromUDP(buf)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				re, _ := net.DialUDP("udp", nil, addr)
+				defer re.Close()
+				re.Write(buf)
+				fmt.Println("Pong")
+			}
+		}()
+	}
+	var listener net.Listener
+	var err error
+	if s.useMTLS {
+		listener, err = tls.Listen("tcp", address, s.tlsConfig)
+	} else {
+		listener, err = net.Listen("tcp", address)
+	}
 	if err != nil {
 		return err
 	}
