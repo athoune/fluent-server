@@ -21,6 +21,11 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		fmt.Printf(`
+ca.crt: %s
+server.crt: %s
+server.key: %s
+`, caCrt, os.Getenv("SRV_CRT"), os.Getenv("SRV_KEY"))
 		s = server.NewTLS(handler, cfg)
 	} else {
 		s = server.New(handler)
