@@ -1,5 +1,7 @@
 package event
 
+// FIXME unify event.Event and message.Event
+
 import (
 	"time"
 )
