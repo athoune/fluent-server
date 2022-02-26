@@ -2,18 +2,15 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
-	"time"
 
+	"github.com/factorysh/fluent-server/mirror"
 	"github.com/factorysh/fluent-server/server"
 )
 
-func handler(tag string, ts *time.Time, record map[string]interface{}) error {
-	fmt.Println(tag, ts, record)
-	return nil
-}
-
 func main() {
+	m := mirror.New()
 	var s *server.Server
 	caCrt := os.Getenv("CA_CRT")
 	if caCrt != "" {
@@ -26,9 +23,14 @@ ca.crt: %s
 server.crt: %s
 server.key: %s
 `, caCrt, os.Getenv("SRV_CRT"), os.Getenv("SRV_KEY"))
-		s = server.NewTLS(handler, cfg)
+		s = server.NewTLS(m.Handler, cfg)
 	} else {
-		s = server.New(handler)
+		s = server.New(m.Handler)
+	}
+	ll := os.Getenv("MIRROR_LISTEN")
+	if ll != "" {
+		go http.ListenAndServe(ll, m)
+		fmt.Println("mirror listen ", ll)
 	}
 
 	l := os.Getenv("LISTEN")
