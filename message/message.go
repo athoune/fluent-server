@@ -1,10 +1,12 @@
 package message
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
@@ -29,18 +31,33 @@ func New(eventHandler HandlerFunc) *FluentReader {
 	}
 }
 
-func (f *FluentReader) Listen(flux io.ReadWriter) error {
+func (f *FluentReader) Listen(ctx context.Context, flux io.ReadWriteCloser) error {
+	defer flux.Close()
 	decoder := msgpack.NewDecoder(flux)
 	encoder := msgpack.NewEncoder(flux)
-	for {
-		err := f.decodeMessage(decoder, encoder)
-		if err != nil {
-			if err == io.EOF {
-				return nil
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	var globalError error
+	go func() {
+		<-ctx.Done()
+		flux.Close()
+		wg.Done()
+	}()
+
+	go func() {
+		for {
+			err := f.decodeMessage(decoder, encoder)
+			if err != nil {
+				if err == io.EOF {
+					return
+				}
+				globalError = err
 			}
-			return err
 		}
-	}
+	}()
+	wg.Wait()
+
+	return globalError
 }
 
 func (f *FluentReader) decodeMessage(decoder *msgpack.Decoder, encoder *msgpack.Encoder) error {

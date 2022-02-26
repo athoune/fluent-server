@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -74,8 +75,7 @@ func (s *Server) ListenAndServe(address string) error {
 		}
 		fmt.Println("Hello", conn.RemoteAddr())
 		go func() {
-			defer conn.Close()
-			err := s.reader.Listen(conn)
+			err := s.reader.Listen(context.TODO(), conn)
 			if err != nil {
 				log.Println(err)
 				return
