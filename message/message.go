@@ -23,12 +23,22 @@ type HandlerFunc func(tag string, time *time.Time, record map[string]interface{}
 
 type FluentReader struct {
 	eventHandler HandlerFunc
+	auth         bool
 }
 
 func New(eventHandler HandlerFunc) *FluentReader {
 	return &FluentReader{
 		eventHandler: eventHandler,
 	}
+}
+
+func (f *FluentReader) helo(encoder msgpack.Encoder, decoder msgpack.Decoder) error {
+
+	err := encoder.EncodeMapLen(2)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (f *FluentReader) Listen(ctx context.Context, flux io.ReadWriteCloser) error {
@@ -45,13 +55,19 @@ func (f *FluentReader) Listen(ctx context.Context, flux io.ReadWriteCloser) erro
 	}()
 
 	go func() {
-		for {
-			err := f.decodeMessage(decoder, encoder)
+		if f.auth {
+			err := f.helo(*encoder, *decoder)
 			if err != nil {
-				if err == io.EOF {
-					return
-				}
 				globalError = err
+				wg.Done()
+			}
+		}
+		for {
+			err := f.handleMessage(decoder, encoder)
+			if err != nil {
+				globalError = err
+				wg.Done()
+				return
 			}
 		}
 	}()
@@ -60,7 +76,7 @@ func (f *FluentReader) Listen(ctx context.Context, flux io.ReadWriteCloser) erro
 	return globalError
 }
 
-func (f *FluentReader) decodeMessage(decoder *msgpack.Decoder, encoder *msgpack.Encoder) error {
+func (f *FluentReader) handleMessage(decoder *msgpack.Decoder, encoder *msgpack.Encoder) error {
 	code, err := decoder.PeekCode()
 	if err != nil {
 		return err
