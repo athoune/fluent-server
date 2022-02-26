@@ -226,9 +226,9 @@ func (f *FluentReader) decodeEvent(decoder *msgpack.Decoder, encoder *msgpack.En
 			}
 		}
 		if chunk != "" {
-			err = encoder.Encode(map[string]interface{}{
-				"ack": chunk,
-			})
+			encoder.EncodeMapLen(1)
+			encoder.EncodeString("ack")
+			err = encoder.EncodeString(chunk)
 			if err != nil {
 				return err
 			}
