@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sync"
 	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
@@ -45,35 +44,19 @@ func (f *FluentReader) Listen(ctx context.Context, flux io.ReadWriteCloser) erro
 	defer flux.Close()
 	decoder := msgpack.NewDecoder(flux)
 	encoder := msgpack.NewEncoder(flux)
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	var globalError error
+	encoder.UseCompactInts(true)
+	encoder.UseCompactFloats(true)
 	go func() {
 		<-ctx.Done()
 		flux.Close()
-		wg.Done()
 	}()
 
-	go func() {
-		if f.auth {
-			err := f.helo(*encoder, *decoder)
-			if err != nil {
-				globalError = err
-				wg.Done()
-			}
+	for {
+		err := f.handleMessage(decoder, encoder)
+		if err != nil {
+			return err
 		}
-		for {
-			err := f.handleMessage(decoder, encoder)
-			if err != nil {
-				globalError = err
-				wg.Done()
-				return
-			}
-		}
-	}()
-	wg.Wait()
-
-	return globalError
+	}
 }
 
 func (f *FluentReader) handleMessage(decoder *msgpack.Decoder, encoder *msgpack.Encoder) error {
