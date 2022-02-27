@@ -1,6 +1,7 @@
 package message
 
 import (
+	"context"
 	"io"
 	"sync"
 	"testing"
@@ -29,6 +30,10 @@ func (m *mockupConn) Write(p []byte) (n int, err error) {
 	return m.w.Write(p)
 }
 
+func (*mockupConn) Close() error {
+	return nil
+}
+
 func TestHearthbeat(t *testing.T) {
 	client, server := newMockup()
 	wg := &sync.WaitGroup{}
@@ -42,7 +47,7 @@ func TestHearthbeat(t *testing.T) {
 	})
 
 	go func() {
-		err := f.Listen(server)
+		err := f.Listen(context.TODO(), server)
 		assert.NoError(t, err)
 	}()
 
@@ -77,7 +82,7 @@ func TestForwardMode(t *testing.T) {
 	})
 
 	go func() {
-		err := f.Listen(server)
+		err := f.Listen(context.TODO(), server)
 		assert.NoError(t, err)
 	}()
 
