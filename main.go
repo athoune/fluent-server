@@ -12,6 +12,7 @@ import (
 func main() {
 	m := mirror.New()
 	var s *server.Server
+
 	caCrt := os.Getenv("CA_CRT")
 	if caCrt != "" {
 		cfg, err := server.ConfigTLS(caCrt, os.Getenv("SRV_CRT"), os.Getenv("SRV_KEY"))

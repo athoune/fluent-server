@@ -1,9 +1,9 @@
 package server
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"log"
 	"net"
 
@@ -73,11 +73,18 @@ func (s *Server) ListenAndServe(address string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("Hello", conn.RemoteAddr())
+		log.Println("Connection from ", conn.RemoteAddr())
 		go func() {
-			err := s.reader.Listen(context.TODO(), conn)
+			session := &message.FluentSession{
+				Reader: s.reader,
+			}
+			err := session.Loop(conn)
 			if err != nil {
-				log.Println(err)
+				if err == io.EOF {
+					log.Println(conn.RemoteAddr(), "is closed")
+				} else {
+					log.Println("Error from", conn.RemoteAddr(), err)
+				}
 				return
 			}
 		}()
