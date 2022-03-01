@@ -6,33 +6,43 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
 
 	"github.com/factorysh/fluent-server/message"
 )
 
 func New(handler message.HandlerFunc) *Server {
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
 	return &Server{
-		reader: message.New(handler),
+		reader:     message.New(handler),
+		waitListen: wg,
 	}
 }
 
 func NewTLS(handler message.HandlerFunc, cfg *tls.Config) *Server {
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
 	return &Server{
-		reader:    message.New(handler),
-		useUDP:    false,
-		useMTLS:   true,
-		tlsConfig: cfg,
+		reader:     message.New(handler),
+		useUDP:     false,
+		useMTLS:    true,
+		tlsConfig:  cfg,
+		waitListen: wg,
 	}
 }
 
 type Server struct {
-	reader    *message.FluentReader
-	useUDP    bool
-	useMTLS   bool
-	tlsConfig *tls.Config
+	reader     *message.FluentReader
+	useUDP     bool
+	useMTLS    bool
+	tlsConfig  *tls.Config
+	listener   net.Listener
+	waitListen *sync.WaitGroup
 }
 
 func (s *Server) ListenAndServe(address string) error {
+
 	if s.useUDP {
 		go func() {
 			a, err := net.ResolveUDPAddr("udp", address)
@@ -58,18 +68,18 @@ func (s *Server) ListenAndServe(address string) error {
 			}
 		}()
 	}
-	var listener net.Listener
 	var err error
 	if s.useMTLS {
-		listener, err = tls.Listen("tcp", address, s.tlsConfig)
+		s.listener, err = tls.Listen("tcp", address, s.tlsConfig)
 	} else {
-		listener, err = net.Listen("tcp", address)
+		s.listener, err = net.Listen("tcp", address)
 	}
 	if err != nil {
 		return err
 	}
+	s.waitListen.Done()
 	for {
-		conn, err := listener.Accept()
+		conn, err := s.listener.Accept()
 		if err != nil {
 			return err
 		}
