@@ -10,7 +10,7 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-func TestSever(t *testing.T) {
+func TestServer(t *testing.T) {
 	wg := &sync.WaitGroup{}
 
 	server := New(func(tag string, time *time.Time, record map[string]interface{}) error {
@@ -25,12 +25,15 @@ func TestSever(t *testing.T) {
 	encoder := msgpack.NewEncoder(client)
 	decoder := msgpack.NewDecoder(client)
 
-	wg.Add(1)
+	wg.Add(2)
 	err = encoder.Encode([]interface{}{
 		"tag.name",
 		[]interface{}{
 			[]interface{}{1441588984, map[string]interface{}{
 				"message": "foo",
+			}},
+			[]interface{}{1441588985, map[string]interface{}{
+				"message": "bar",
 			}},
 		},
 		map[string]interface{}{
