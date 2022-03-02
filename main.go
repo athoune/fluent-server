@@ -28,10 +28,11 @@ server.key: %s
 		s = server.New(m.Handler)
 	}
 	ll := os.Getenv("MIRROR_LISTEN")
-	if ll != "" {
-		go http.ListenAndServe(ll, m)
-		fmt.Println("mirror listen ", ll)
+	if ll == "" {
+		ll = "localhost:24280"
 	}
+	go http.ListenAndServe(ll, m)
+	fmt.Println("mirror listen ", ll)
 
 	l := os.Getenv("LISTEN")
 	if l == "" {
