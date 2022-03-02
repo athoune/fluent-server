@@ -1,0 +1,10 @@
+{
+  "name": "go-fluent-server",
+  "version": "0.0.1",
+  "main": "index.js",
+  "author": "Mathieu Lecarme",
+  "license": "MIT",
+  "dependencies": {
+    "@fluent-org/logger": "^1.0.7"
+  }
+}
