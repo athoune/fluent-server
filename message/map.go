@@ -18,3 +18,16 @@ func _map(encoder *msgpack.Encoder, entries ...interface{}) error {
 	}
 	return nil
 }
+
+func _list(encoder *msgpack.Encoder, entries ...interface{}) error {
+	l := len(entries)
+	// TODO assert l is even
+	encoder.EncodeArrayLen(l)
+	for i := 0; i < l; i++ {
+		err := encoder.Encode(entries[i])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

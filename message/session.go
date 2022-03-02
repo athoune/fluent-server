@@ -9,13 +9,24 @@ import (
 	"github.com/vmihailenco/msgpack/v5/msgpcode"
 )
 
+type Step int
+
+const (
+	WatingForHelo Step = iota
+	WaitingForPing
+	WaitingForPong
+	WaitingForEvents
+)
+
 type FluentSession struct {
-	nonce    string
-	hashSalt string
-	pingStep bool
-	encoder  *msgpack.Encoder
-	decoder  *msgpack.Decoder
-	Reader   *FluentReader
+	nonce          string
+	hashSalt       string
+	encoder        *msgpack.Encoder
+	decoder        *msgpack.Decoder
+	Reader         *FluentReader
+	Authentication bool
+	SharedKey      string
+	step           Step
 }
 
 func (s *FluentSession) Loop(conn io.ReadWriteCloser) error {
@@ -33,6 +44,16 @@ func (s *FluentSession) Loop(conn io.ReadWriteCloser) error {
 }
 
 func (s *FluentSession) handleMessage() error {
+	if s.Authentication {
+		switch s.step {
+		case WatingForHelo:
+			return s.doHelo()
+		case WaitingForPing:
+			return s.doPingPong()
+		default:
+			return fmt.Errorf("unknown step : %v", s.step)
+		}
+	}
 	code, err := s.decoder.PeekCode()
 	if err != nil {
 		return err
@@ -62,15 +83,10 @@ func (s *FluentSession) handleMessage() error {
 	if err != nil {
 		return err
 	}
-	switch _type {
-	case "PING":
-		return s.doPing()
-	default: // It's a tag
-		if l < 2 {
-			return errors.New("too short")
-		}
-		return s.decodeMessages(_type, l)
+	if l < 2 {
+		return errors.New("too short")
 	}
+	return s.decodeMessages(_type, l)
 }
 
 func (s *FluentSession) Ack(chunk string) error {
