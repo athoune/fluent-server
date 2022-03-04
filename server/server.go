@@ -6,30 +6,36 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"sync"
 
 	"github.com/factorysh/fluent-server/message"
 )
 
-func New(handler message.HandlerFunc) *Server {
+func New(handler message.HandlerFunc) (*Server, error) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	return &Server{
+	s := &Server{
 		reader:     message.New(handler),
 		waitListen: wg,
 	}
+	var err error
+	s.Hostname, err = os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
-func NewTLS(handler message.HandlerFunc, cfg *tls.Config) *Server {
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	return &Server{
-		reader:     message.New(handler),
-		useUDP:     false,
-		useMTLS:    true,
-		tlsConfig:  cfg,
-		waitListen: wg,
+func NewTLS(handler message.HandlerFunc, cfg *tls.Config) (*Server, error) {
+	s, err := New(handler)
+	if err != nil {
+		return nil, err
 	}
+	s.useUDP = false
+	s.useMTLS = true
+	s.tlsConfig = cfg
+	return s, nil
 }
 
 type Server struct {
@@ -39,6 +45,8 @@ type Server struct {
 	tlsConfig  *tls.Config
 	listener   net.Listener
 	waitListen *sync.WaitGroup
+	SharedKey  string
+	Hostname   string
 }
 
 func (s *Server) ListenAndServe(address string) error {
@@ -86,7 +94,9 @@ func (s *Server) ListenAndServe(address string) error {
 		log.Println("Connection from ", conn.RemoteAddr())
 		go func() {
 			session := &message.FluentSession{
-				Reader: s.reader,
+				Reader:    s.reader,
+				SharedKey: s.SharedKey,
+				Hostname:  s.Hostname,
 			}
 			err := session.Loop(conn)
 			if err != nil {

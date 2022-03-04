@@ -18,15 +18,18 @@ const (
 	WaitingForEvents
 )
 
+type PasswordForKey func(string) string
+
 type FluentSession struct {
 	nonce          string
 	hashSalt       string
 	encoder        *msgpack.Encoder
 	decoder        *msgpack.Decoder
 	Reader         *FluentReader
-	Authentication bool
 	SharedKey      string
 	step           Step
+	Hostname       string
+	PasswordForKey PasswordForKey
 }
 
 func (s *FluentSession) Loop(conn io.ReadWriteCloser) error {
@@ -44,12 +47,16 @@ func (s *FluentSession) Loop(conn io.ReadWriteCloser) error {
 }
 
 func (s *FluentSession) handleMessage() error {
-	if s.Authentication {
+	if s.SharedKey == "" {
+		s.step = WaitingForEvents
+	} else {
 		switch s.step {
 		case WatingForHelo:
 			return s.doHelo()
 		case WaitingForPing:
 			return s.doPingPong()
+		case WaitingForEvents:
+			// lets go
 		default:
 			return fmt.Errorf("unknown step : %v", s.step)
 		}

@@ -13,10 +13,11 @@ import (
 func TestServer(t *testing.T) {
 	wg := &sync.WaitGroup{}
 
-	server := New(func(tag string, time *time.Time, record map[string]interface{}) error {
+	server, err := New(func(tag string, time *time.Time, record map[string]interface{}) error {
 		wg.Done()
 		return nil
 	})
+	assert.NoError(t, err)
 	server.useUDP = false
 	go server.ListenAndServe("127.0.0.1:0")
 	server.waitListen.Wait()

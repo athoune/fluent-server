@@ -21,24 +21,20 @@ func (s *FluentSession) doHelo() error {
 	if err != nil {
 		return err
 	}
-	s.hashSalt, err = RandomString(16)
-	if err != nil {
-		return err
+	if s.PasswordForKey == nil {
+		s.hashSalt = ""
+	} else {
+		s.hashSalt, err = RandomString(16)
+		if err != nil {
+			return err
+		}
 	}
 	fmt.Println("HELO")
-	err = s.encoder.EncodeMapLen(2)
-	if err != nil {
-		return err
-	}
-	err = s.encoder.EncodeString("type")
+	err = s.encoder.EncodeArrayLen(2)
 	if err != nil {
 		return err
 	}
 	err = s.encoder.EncodeString("HELO")
-	if err != nil {
-		return err
-	}
-	err = s.encoder.EncodeString("options")
 	if err != nil {
 		return err
 	}
