@@ -64,25 +64,23 @@ func (s *FluentSession) doPingPong() error {
 	pingKey := hex.EncodeToString(shared_key_hexdigest.Sum(nil))
 
 	hr := sha512.New()
-	ping["server_hostname"] = s.Hostname
-
-	for _, k := range []string{"shared_key_salt", "server_hostname", "nonce"} {
-		hr.Write([]byte(ping[k]))
-	}
+	hr.Write([]byte(ping["shared_key_salt"]))
+	hr.Write([]byte(s.Hostname))
+	hr.Write([]byte(s.nonce))
 	hr.Write([]byte(s.SharedKey))
 
 	fmt.Println("PONG")
 	if ping["shared_key_hexdigest"] != pingKey {
 		_list(s.encoder, "PONG",
 			false, "shared key mismatch",
-			ping["server_hostname"],
+			s.Hostname,
 			hex.EncodeToString(hr.Sum(nil)),
 		)
 		return fmt.Errorf("shared key mismatch %v != %v", ping["shared_key_hexdigest"], pingKey)
 	}
 	_list(s.encoder, "PONG",
 		true, "",
-		ping["server_hostname"],
+		s.Hostname,
 		hex.EncodeToString(hr.Sum(nil)),
 	)
 
