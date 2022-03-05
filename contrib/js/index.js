@@ -9,6 +9,10 @@ const logger = new FluentClient("tag_prefix", {
   },
   eventMode: "Forward",
   ack: {},
+  security: {
+    clientHostname: "client.localdomain",
+    sharedKey: "popo"
+  }
 });
 
 
