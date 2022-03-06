@@ -2,29 +2,28 @@ package message
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 )
 
-func RandomString(size int) (string, error) {
+func random(size int) ([]byte, error) {
 	b := make([]byte, size)
 	_, err := rand.Read(b)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return base64.StdEncoding.EncodeToString(b)[:size], nil
+	return b, nil
 }
 
 func (s *FluentSession) doHelo() error {
 	var err error
-	s.nonce, err = RandomString(16)
+	s.nonce, err = random(16)
 	if err != nil {
 		return err
 	}
 	if s.PasswordForKey == nil {
-		s.hashSalt = ""
+		s.hashSalt = []byte{}
 	} else {
-		s.hashSalt, err = RandomString(16)
+		s.hashSalt, err = random(16)
 		if err != nil {
 			return err
 		}

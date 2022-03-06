@@ -24,7 +24,7 @@ func (s *FluentSession) handlePing() error {
 	if l != 6 {
 		return fmt.Errorf("wrong size for a ping : %v (type='%s')", l, _type)
 	}
-	ping := make(map[string]string)
+	ping := make(map[string][]byte)
 	for _, k := range []string{"client_hostname", "shared_key_salt",
 		"shared_key_hexdigest", "username", "password"} {
 		code, err := s.decoder.PeekCode()
@@ -37,14 +37,14 @@ func (s *FluentSession) handlePing() error {
 			if err != nil {
 				return err
 			}
-			ping[k] = v
+			ping[k] = []byte(v)
 		} else {
 			if msgpcode.IsBin(code) {
 				vv, err := s.decoder.DecodeBytes()
 				if err != nil {
 					return err
 				}
-				ping[k] = string(vv)
+				ping[k] = vv
 			} else {
 				return fmt.Errorf("unknown type : %v", code)
 			}
@@ -52,7 +52,7 @@ func (s *FluentSession) handlePing() error {
 	}
 	s.shared_key_salt = ping["shared_key_salt"]
 	for k, v := range ping {
-		fmt.Println("ping", k, "=>", v)
+		fmt.Println("ping", k, "=>", string(v))
 	}
 
 	// sha512_hex(shared_key_salt + client_hostname + nonce + shared_key)
@@ -65,7 +65,7 @@ func (s *FluentSession) handlePing() error {
 	pingKey := hex.EncodeToString(shared_key_hexdigest.Sum(nil))
 
 	msg := ""
-	if ping["shared_key_hexdigest"] != pingKey {
+	if string(ping["shared_key_hexdigest"]) != pingKey {
 		msg = "shared key mismatch"
 	}
 	return s.doPong(msg)

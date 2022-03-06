@@ -22,8 +22,8 @@ const (
 type PasswordForKey func(string) string
 
 type FluentSession struct {
-	nonce           string
-	hashSalt        string
+	nonce           []byte
+	hashSalt        []byte
 	encoder         *msgpack.Encoder
 	decoder         *msgpack.Decoder
 	Reader          *FluentReader
@@ -31,7 +31,7 @@ type FluentSession struct {
 	step            Step
 	Hostname        string
 	PasswordForKey  PasswordForKey
-	shared_key_salt string
+	shared_key_salt []byte
 }
 
 func (s *FluentSession) Loop(conn io.ReadWriteCloser) error {
@@ -65,6 +65,7 @@ func (s *FluentSession) handleMessage() error {
 		return s.doHelo()
 	}
 	code, err := s.decoder.PeekCode()
+	fmt.Println("code", code)
 	if err != nil {
 		return err
 	}
