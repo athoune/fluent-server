@@ -29,7 +29,7 @@ func (s *FluentSession) doHelo() error {
 			return err
 		}
 	}
-	fmt.Println("HELO")
+	fmt.Println("< HELO")
 	err = s.encoder.EncodeArrayLen(2)
 	if err != nil {
 		return err
@@ -43,6 +43,10 @@ func (s *FluentSession) doHelo() error {
 		"auth", s.hashSalt,
 		"keepalive", true,
 	)
+	fmt.Printf(`< nonce : %s
+  auth: %s
+  keepAlive: %v
+`, s.nonce, s.hashSalt, true)
 	if err != nil {
 		return err
 	}

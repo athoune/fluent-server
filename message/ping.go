@@ -8,14 +8,11 @@ import (
 	"github.com/vmihailenco/msgpack/v5/msgpcode"
 )
 
-func (s *FluentSession) doPingPong() error {
-	fmt.Println("PING")
+func (s *FluentSession) handlePing() error {
+	fmt.Println("> PING")
 	l, err := s.decoder.DecodeArrayLen()
 	if err != nil {
 		return err
-	}
-	if l != 6 {
-		return fmt.Errorf("wrong size : %v", l)
 	}
 	_type, err := s.decoder.DecodeString()
 	if err != nil {
@@ -23,6 +20,9 @@ func (s *FluentSession) doPingPong() error {
 	}
 	if _type != "PING" {
 		return fmt.Errorf("wrong type : %s", _type)
+	}
+	if l != 6 {
+		return fmt.Errorf("wrong size for a ping : %v (type='%s')", l, _type)
 	}
 	ping := make(map[string]string)
 	for _, k := range []string{"client_hostname", "shared_key_salt",
@@ -50,6 +50,7 @@ func (s *FluentSession) doPingPong() error {
 			}
 		}
 	}
+	s.shared_key_salt = ping["shared_key_salt"]
 	for k, v := range ping {
 		fmt.Println("ping", k, "=>", v)
 	}
@@ -63,27 +64,9 @@ func (s *FluentSession) doPingPong() error {
 	shared_key_hexdigest.Write([]byte(s.SharedKey))
 	pingKey := hex.EncodeToString(shared_key_hexdigest.Sum(nil))
 
-	hr := sha512.New()
-	hr.Write([]byte(ping["shared_key_salt"]))
-	hr.Write([]byte(s.Hostname))
-	hr.Write([]byte(s.nonce))
-	hr.Write([]byte(s.SharedKey))
-
-	fmt.Println("PONG")
+	msg := ""
 	if ping["shared_key_hexdigest"] != pingKey {
-		_list(s.encoder, "PONG",
-			false, "shared key mismatch",
-			s.Hostname,
-			hex.EncodeToString(hr.Sum(nil)),
-		)
-		return fmt.Errorf("shared key mismatch %v != %v", ping["shared_key_hexdigest"], pingKey)
+		msg = "shared key mismatch"
 	}
-	_list(s.encoder, "PONG",
-		true, "",
-		s.Hostname,
-		hex.EncodeToString(hr.Sum(nil)),
-	)
-
-	s.step = WaitingForEvents
-	return nil
+	return s.doPong(msg)
 }
