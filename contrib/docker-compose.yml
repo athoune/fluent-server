@@ -1,7 +1,7 @@
 ---
 
 services:
-  server:
+  server.example.com:
     image: busybox
     volumes:
      - ../bin/fluent-server:/usr/bin/fluent-server
@@ -13,8 +13,8 @@ services:
      - 24224
   fluentbit:
     depends_on:
-     - server
+     - server.example.com
     image: fluent/fluent-bit
     volumes:
       - ./config:/config
-    command: /fluent-bit/bin/fluent-bit  -c /config/C.cfg
+    command: /fluent-bit/bin/fluent-bit  -c /config/C.cfg --verbose
