@@ -2,6 +2,7 @@ package message
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 )
 
@@ -37,15 +38,17 @@ func (s *FluentSession) doHelo() error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf(`< nonce : %s
+  auth: %s
+  keepAlive: %v
+`, hex.EncodeToString(s.nonce), s.hashSalt, true)
+
 	err = _map(s.encoder,
 		"nonce", s.nonce,
 		"auth", s.hashSalt,
 		"keepalive", true,
 	)
-	fmt.Printf(`< nonce : %s
-  auth: %s
-  keepAlive: %v
-`, s.nonce, s.hashSalt, true)
 	if err != nil {
 		return err
 	}

@@ -8,16 +8,8 @@ import (
 	"github.com/vmihailenco/msgpack/v5/msgpcode"
 )
 
-func (s *FluentSession) handlePing() error {
+func (s *FluentSession) handlePing(l int, _type string) error {
 	fmt.Println("> PING")
-	l, err := s.decoder.DecodeArrayLen()
-	if err != nil {
-		return err
-	}
-	_type, err := s.decoder.DecodeString()
-	if err != nil {
-		return err
-	}
 	if _type != "PING" {
 		return fmt.Errorf("wrong type : %s", _type)
 	}
@@ -31,7 +23,6 @@ func (s *FluentSession) handlePing() error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(k, code)
 		if msgpcode.IsString(code) {
 			v, err := s.decoder.DecodeString()
 			if err != nil {
@@ -46,7 +37,7 @@ func (s *FluentSession) handlePing() error {
 				}
 				ping[k] = vv
 			} else {
-				return fmt.Errorf("unknown type : %v", code)
+				return fmt.Errorf("unknown code : %v", code)
 			}
 		}
 	}
@@ -58,7 +49,7 @@ func (s *FluentSession) handlePing() error {
 	// sha512_hex(shared_key_salt + client_hostname + nonce + shared_key)
 	shared_key_hexdigest := sha512.New()
 	for _, k := range []string{"shared_key_salt", "client_hostname"} {
-		shared_key_hexdigest.Write([]byte(ping[k]))
+		shared_key_hexdigest.Write(ping[k])
 	}
 	shared_key_hexdigest.Write([]byte(s.nonce))
 	shared_key_hexdigest.Write([]byte(s.SharedKey))

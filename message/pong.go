@@ -13,21 +13,18 @@ func (s *FluentSession) doPong(msg string) error {
 	hr.Write([]byte(s.nonce))
 	hr.Write([]byte(s.SharedKey))
 
-	if msg != "" {
-		_list(s.encoder,
-			"PONG",
-			false, msg,
-			s.Hostname,
-			hex.EncodeToString(hr.Sum(nil)),
-		)
-		return fmt.Errorf(msg)
-	}
-	_list(s.encoder, "PONG",
-		true, "",
+	err := _list(s.encoder,
+		"PONG",
+		msg == "",
+		msg,
 		s.Hostname,
 		hex.EncodeToString(hr.Sum(nil)),
 	)
 	fmt.Println("< PONG")
+
+	if err != nil {
+		return err
+	}
 	s.step = WaitingForEvents
 	return nil
 }
