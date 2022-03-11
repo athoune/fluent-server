@@ -1,9 +1,10 @@
 package message
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"log"
-	"time"
 
 	"github.com/vmihailenco/msgpack/v5/msgpcode"
 )
@@ -20,7 +21,7 @@ func (s *FluentSession) decodeMessages(tag string, l int) error {
 	case msgpcode.IsBin(firstCode) || msgpcode.IsString(firstCode): // PackedForward Mode
 		err = s.packedForwardMode(tag, l)
 
-	case firstCode == msgpcode.Uint32: // Message Mode
+	case firstCode == msgpcode.Uint32 || msgpcode.IsExt(firstCode): // Message Mode
 		err = s.messageMode(tag, l)
 	default:
 		err = fmt.Errorf("bad code %v", firstCode)
@@ -43,9 +44,12 @@ func (s *FluentSession) forwardMode(tag string, l int) error {
 		events[i] = Event{tag, ts, record}
 	}
 
+	var chunk string
+	var compressed string
+
 	if l == 3 { // there is options
-		var chunk string
 		var key string
+		var size int
 		option_l, err := s.decoder.DecodeMapLen()
 		if err != nil {
 			return err
@@ -58,6 +62,10 @@ func (s *FluentSession) forwardMode(tag string, l int) error {
 			switch key {
 			case "chunk":
 				chunk, err = s.decoder.DecodeString()
+			case "size":
+				size, err = s.decoder.DecodeInt()
+			case "compressed":
+				compressed, err = s.decoder.DecodeString()
 			default:
 				_, err = s.decoder.DecodeInterface()
 			}
@@ -65,6 +73,7 @@ func (s *FluentSession) forwardMode(tag string, l int) error {
 				return err
 			}
 		}
+		fmt.Println("options", size, chunk, compressed)
 		if chunk != "" {
 			fmt.Println("ack", chunk)
 			err = s.Ack(chunk)
@@ -79,6 +88,10 @@ func (s *FluentSession) forwardMode(tag string, l int) error {
 			return err
 		}
 	}
+	//Server SHOULD close the connection silently with no response when the chunk option is not sent.
+	if chunk == "" {
+		return io.EOF
+	}
 	return nil
 }
 
@@ -87,7 +100,7 @@ func (s *FluentSession) messageMode(tag string, l int) error {
 	if l > 4 {
 		return fmt.Errorf("message too large: %d", l)
 	}
-	ts, err := s.decoder.DecodeUint32()
+	ts, err := decodeTime(s.decoder)
 	if err != nil {
 		return err
 	}
@@ -102,11 +115,10 @@ func (s *FluentSession) messageMode(tag string, l int) error {
 		}
 		fmt.Println("option", option)
 	}
-	tz := time.Unix(int64(ts), 0)
-	return s.Reader.eventHandler(tag, &tz, record)
+	return s.Reader.eventHandler(tag, ts, record)
 }
 
 func (s *FluentSession) packedForwardMode(tag string, l int) error {
 	// TODO
-	return nil
+	return errors.New("not implemented")
 }
