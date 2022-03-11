@@ -1,11 +1,13 @@
 package message
 
 import (
-	"errors"
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"log"
 
+	"github.com/vmihailenco/msgpack/v5"
 	"github.com/vmihailenco/msgpack/v5/msgpcode"
 )
 
@@ -37,46 +39,24 @@ func (s *FluentSession) forwardMode(tag string, l int) error {
 	}
 	events := make([]Event, size)
 	for i := 0; i < size; i++ {
-		ts, record, err := s.decodeEntry()
+		ts, record, err := decodeEntry(s.decoder)
 		if err != nil {
 			return err
 		}
 		events[i] = Event{tag, ts, record}
 	}
 
-	var chunk string
-	var compressed string
+	var option *Option
 
 	if l == 3 { // there is options
-		var key string
-		var size int
-		option_l, err := s.decoder.DecodeMapLen()
+		option, err := decodeOption(s.decoder)
 		if err != nil {
 			return err
 		}
-		for i := 0; i < option_l; i++ {
-			key, err = s.decoder.DecodeString()
-			if err != nil {
-				return err
-			}
-			switch key {
-			case "chunk":
-				chunk, err = s.decoder.DecodeString()
-			case "size":
-				size, err = s.decoder.DecodeInt()
-			case "compressed":
-				compressed, err = s.decoder.DecodeString()
-			default:
-				_, err = s.decoder.DecodeInterface()
-			}
-			if err != nil {
-				return err
-			}
-		}
-		fmt.Println("options", size, chunk, compressed)
-		if chunk != "" {
-			fmt.Println("ack", chunk)
-			err = s.Ack(chunk)
+		fmt.Println("options", option)
+		if option.Chunk != "" {
+			fmt.Println("ack", option.Chunk)
+			err = s.Ack(option.Chunk)
 			if err != nil {
 				return err
 			}
@@ -89,7 +69,7 @@ func (s *FluentSession) forwardMode(tag string, l int) error {
 		}
 	}
 	//Server SHOULD close the connection silently with no response when the chunk option is not sent.
-	if chunk == "" {
+	if option != nil && option.Chunk == "" {
 		return io.EOF
 	}
 	return nil
@@ -119,6 +99,55 @@ func (s *FluentSession) messageMode(tag string, l int) error {
 }
 
 func (s *FluentSession) packedForwardMode(tag string, l int) error {
-	// TODO
-	return errors.New("not implemented")
+	firstCode, err := s.decoder.PeekCode()
+	if err != nil {
+		return err
+	}
+	var entries []byte
+	switch {
+	case msgpcode.IsBin(firstCode):
+		entries, err = s.decoder.DecodeBytes()
+		if err != nil {
+			return err
+		}
+	case msgpcode.IsString(firstCode):
+		return fmt.Errorf("PackedForward as string is deprecated")
+	}
+	var option *Option
+	if l == 3 {
+		option, err = decodeOption(s.decoder)
+		if err != nil {
+			return err
+		}
+	}
+	var decoder *msgpack.Decoder
+	if option != nil && option.Compressed == "gzip" {
+		r, err := gzip.NewReader(bytes.NewBuffer(entries))
+		if err != nil {
+			return err
+		}
+		decoder = msgpack.NewDecoder(r)
+	} else {
+		decoder = msgpack.NewDecoder(bytes.NewBuffer(entries))
+	}
+	if option != nil && option.Chunk != "" {
+		err = s.Ack(option.Chunk)
+		if err != nil {
+			return err
+		}
+	}
+	for {
+		ts, record, err := decodeEntry(decoder)
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+		err = s.Reader.eventHandler(tag, ts, record)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

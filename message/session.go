@@ -120,7 +120,3 @@ func (s *FluentSession) HandleEvents(l int, _type string) error {
 	}
 	return s.decodeMessages(_type, l)
 }
-
-func (s *FluentSession) Ack(chunk string) error {
-	return _map(s.encoder, "ack", chunk)
-}
