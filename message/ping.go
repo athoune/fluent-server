@@ -3,10 +3,75 @@ package message
 import (
 	"crypto/sha512"
 	"encoding/hex"
+	"errors"
 	"fmt"
 
+	"github.com/vmihailenco/msgpack/v5"
 	"github.com/vmihailenco/msgpack/v5/msgpcode"
 )
+
+type Ping struct {
+	client_hostname      string
+	shared_key_salt      []byte
+	shared_key_hexdigest string
+	username             string
+	password             string
+}
+
+func decodePing(decoder *msgpack.Decoder) (*Ping, error) {
+	p := &Ping{}
+	var err error
+	p.client_hostname, err = decoder.DecodeString()
+	if err != nil {
+		return nil, err
+	}
+	code, err := decoder.PeekCode()
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case msgpcode.IsString(code):
+		sks, err := decoder.DecodeString()
+		if err != nil {
+			return nil, err
+		}
+		p.shared_key_salt = []byte(sks)
+	case msgpcode.IsBin(code):
+		p.shared_key_salt, err = decoder.DecodeBytes()
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("shared_key_salt has an unknown type : %v", code)
+	}
+	p.shared_key_hexdigest, err = decoder.DecodeString()
+	if err != nil {
+		return nil, err
+	}
+	p.username, err = decoder.DecodeString()
+	if err != nil {
+		return nil, err
+	}
+	p.password, err = decoder.DecodeString()
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func (p *Ping) ValidateSharedKeyHexdigest(nonce, sharedKey string) error {
+	// sha512_hex(shared_key_salt + client_hostname + nonce + shared_key)
+	shared_key_hexdigest := sha512.New()
+	shared_key_hexdigest.Write([]byte(p.shared_key_salt))
+	shared_key_hexdigest.Write([]byte(p.client_hostname))
+	shared_key_hexdigest.Write([]byte(nonce))
+	shared_key_hexdigest.Write([]byte(sharedKey))
+	if hex.EncodeToString(shared_key_hexdigest.Sum(nil)) == string(p.shared_key_hexdigest) {
+		return nil
+	}
+	return errors.New("shared key mismatch")
+
+}
 
 func (s *FluentSession) handlePing(l int, _type string) error {
 	fmt.Println("> PING")
@@ -16,48 +81,15 @@ func (s *FluentSession) handlePing(l int, _type string) error {
 	if l != 6 {
 		return fmt.Errorf("wrong size for a ping : %v (type='%s')", l, _type)
 	}
-	ping := make(map[string][]byte)
-	for _, k := range []string{"client_hostname", "shared_key_salt",
-		"shared_key_hexdigest", "username", "password"} {
-		code, err := s.decoder.PeekCode()
-		if err != nil {
-			return err
-		}
-		if msgpcode.IsString(code) {
-			v, err := s.decoder.DecodeString()
-			if err != nil {
-				return err
-			}
-			ping[k] = []byte(v)
-		} else {
-			if msgpcode.IsBin(code) {
-				vv, err := s.decoder.DecodeBytes()
-				if err != nil {
-					return err
-				}
-				ping[k] = vv
-			} else {
-				return fmt.Errorf("unknown code : %v", code)
-			}
-		}
-	}
-	s.shared_key_salt = ping["shared_key_salt"]
-	for k, v := range ping {
-		fmt.Println("ping", k, "=>", string(v))
+
+	ping, err := decodePing(s.decoder)
+	if err != nil {
+		return err
 	}
 
-	// sha512_hex(shared_key_salt + client_hostname + nonce + shared_key)
-	shared_key_hexdigest := sha512.New()
-	for _, k := range []string{"shared_key_salt", "client_hostname"} {
-		shared_key_hexdigest.Write(ping[k])
+	err = ping.ValidateSharedKeyHexdigest(string(s.nonce), s.SharedKey)
+	if err != nil {
+		return s.doPong(string(ping.shared_key_salt), err.Error())
 	}
-	shared_key_hexdigest.Write([]byte(s.nonce))
-	shared_key_hexdigest.Write([]byte(s.SharedKey))
-	pingKey := hex.EncodeToString(shared_key_hexdigest.Sum(nil))
-
-	msg := ""
-	if string(ping["shared_key_hexdigest"]) != pingKey {
-		msg = "shared key mismatch"
-	}
-	return s.doPong(msg)
+	return s.doPong(string(ping.shared_key_salt), "")
 }

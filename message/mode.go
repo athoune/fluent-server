@@ -89,7 +89,7 @@ func (s *FluentSession) messageMode(tag string, l int) error {
 		return err
 	}
 	if l == 4 {
-		option, err := s.decoder.DecodeMap()
+		option, err := decodeOption(s.decoder)
 		if err != nil {
 			return err
 		}

@@ -22,16 +22,15 @@ const (
 type PasswordForKey func(string) string
 
 type FluentSession struct {
-	nonce           []byte
-	hashSalt        []byte
-	encoder         *msgpack.Encoder
-	decoder         *msgpack.Decoder
-	Reader          *FluentReader
-	SharedKey       string
-	step            Step
-	Hostname        string
-	PasswordForKey  PasswordForKey
-	shared_key_salt []byte
+	nonce          []byte
+	hashSalt       []byte
+	encoder        *msgpack.Encoder
+	decoder        *msgpack.Decoder
+	Reader         *FluentReader
+	SharedKey      string
+	step           Step
+	Hostname       string
+	PasswordForKey PasswordForKey
 }
 
 func (s *FluentSession) Loop(conn io.ReadWriteCloser) error {
