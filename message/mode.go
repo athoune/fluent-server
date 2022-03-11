@@ -126,6 +126,7 @@ func (s *FluentSession) packedForwardMode(tag string, l int) error {
 		if err != nil {
 			return err
 		}
+		fmt.Println("CompressedPackedForward")
 		decoder = msgpack.NewDecoder(r)
 	} else {
 		decoder = msgpack.NewDecoder(bytes.NewBuffer(entries))
@@ -139,7 +140,7 @@ func (s *FluentSession) packedForwardMode(tag string, l int) error {
 	for {
 		ts, record, err := decodeEntry(decoder)
 		if err != nil {
-			if err == io.EOF {
+			if err == io.EOF { // the PackedForward is ended, it's ok.
 				return nil
 			}
 			return err
