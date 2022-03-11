@@ -44,11 +44,31 @@ func (s *FluentSession) doHelo() error {
   keepAlive: %v
 `, hex.EncodeToString(s.nonce), s.hashSalt, true)
 
-	err = _map(s.encoder,
-		"nonce", s.nonce,
-		"auth", s.hashSalt,
-		"keepalive", true,
-	)
+	err = s.encoder.EncodeMapLen(3)
+	if err != nil {
+		return err
+	}
+	err = s.encoder.EncodeString("nonce")
+	if err != nil {
+		return err
+	}
+	err = s.encoder.EncodeBytes(s.nonce)
+	if err != nil {
+		return err
+	}
+	err = s.encoder.EncodeString("auth")
+	if err != nil {
+		return err
+	}
+	err = s.encoder.EncodeBytes(s.hashSalt)
+	if err != nil {
+		return err
+	}
+	err = s.encoder.EncodeString("keepalive")
+	if err != nil {
+		return err
+	}
+	err = s.encoder.EncodeBool(true)
 	if err != nil {
 		return err
 	}

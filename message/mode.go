@@ -47,7 +47,6 @@ func (s *FluentSession) forwardMode(tag string, l int) error {
 	}
 
 	var option *Option
-
 	if l == 3 { // there is options
 		option, err := decodeOption(s.decoder)
 		if err != nil {
@@ -62,6 +61,7 @@ func (s *FluentSession) forwardMode(tag string, l int) error {
 			}
 		}
 	}
+
 	for _, event := range events {
 		err = s.Reader.eventHandler(event.tag, event.ts, event.record)
 		if err != nil {
