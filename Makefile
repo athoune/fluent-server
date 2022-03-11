@@ -3,6 +3,7 @@ build: bin
 
 build-linux:
 	make build GOOS=linux
+	upx bin/fluent-server
 
 bin:
 	mkdir -p bin
