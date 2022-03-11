@@ -69,8 +69,13 @@ func (s *FluentSession) forwardMode(tag string, l int) error {
 		}
 	}
 	//Server SHOULD close the connection silently with no response when the chunk option is not sent.
-	if option != nil && option.Chunk == "" {
+	if option == nil {
 		return io.EOF
+	} else {
+		if option.Chunk == "" {
+			fmt.Println("No chunk, so I close the connection.")
+			return io.EOF
+		}
 	}
 	return nil
 }
