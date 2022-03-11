@@ -70,6 +70,9 @@ func (s *FluentSession) handleMessage() error {
 	if code == msgpcode.Nil {
 		return s.HandleHearthBeat()
 	}
+	if !msgpcode.IsFixedArray(code) {
+		return fmt.Errorf("unexpected code %v", code)
+	}
 	l, err := s.decoder.DecodeArrayLen()
 	if err != nil {
 		return err
