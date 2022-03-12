@@ -1,6 +1,10 @@
 build: bin
 	go build -o bin/fluent-server
 
+build-linux:
+	make build GOOS=linux
+	upx bin/fluent-server
+
 bin:
 	mkdir -p bin
 

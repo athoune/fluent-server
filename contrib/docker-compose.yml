@@ -1,0 +1,20 @@
+---
+
+services:
+  server.example.com:
+    image: busybox
+    volumes:
+     - ../bin/fluent-server:/usr/bin/fluent-server
+    command: fluent-server
+    environment:
+      - SHARED_KEY=popo
+      - LISTEN=0.0.0.0:24224
+    expose:
+     - 24224
+  fluentbit:
+    depends_on:
+     - server.example.com
+    image: fluent/fluent-bit
+    volumes:
+      - ./config:/config
+    command: /fluent-bit/bin/fluent-bit  -c /config/C.cfg --verbose

@@ -3,35 +3,54 @@ package server
 import (
 	"crypto/tls"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"os"
+	"sync"
 
 	"github.com/factorysh/fluent-server/message"
 )
 
-func New(handler message.HandlerFunc) *Server {
-	return &Server{
-		reader: message.New(handler),
+func New(handler message.HandlerFunc) (*Server, error) {
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	s := &Server{
+		reader:     message.New(handler),
+		waitListen: wg,
 	}
+	var err error
+	s.Hostname, err = os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
-func NewTLS(handler message.HandlerFunc, cfg *tls.Config) *Server {
-	return &Server{
-		reader:    message.New(handler),
-		useUDP:    false,
-		useMTLS:   true,
-		tlsConfig: cfg,
+func NewTLS(handler message.HandlerFunc, cfg *tls.Config) (*Server, error) {
+	s, err := New(handler)
+	if err != nil {
+		return nil, err
 	}
+	s.useUDP = false
+	s.useMTLS = true
+	s.tlsConfig = cfg
+	return s, nil
 }
 
 type Server struct {
-	reader    *message.FluentReader
-	useUDP    bool
-	useMTLS   bool
-	tlsConfig *tls.Config
+	reader     *message.FluentReader
+	useUDP     bool
+	useMTLS    bool
+	tlsConfig  *tls.Config
+	listener   net.Listener
+	waitListen *sync.WaitGroup
+	SharedKey  string
+	Hostname   string
 }
 
 func (s *Server) ListenAndServe(address string) error {
+
 	if s.useUDP {
 		go func() {
 			a, err := net.ResolveUDPAddr("udp", address)
@@ -57,27 +76,35 @@ func (s *Server) ListenAndServe(address string) error {
 			}
 		}()
 	}
-	var listener net.Listener
 	var err error
 	if s.useMTLS {
-		listener, err = tls.Listen("tcp", address, s.tlsConfig)
+		s.listener, err = tls.Listen("tcp", address, s.tlsConfig)
 	} else {
-		listener, err = net.Listen("tcp", address)
+		s.listener, err = net.Listen("tcp", address)
 	}
 	if err != nil {
 		return err
 	}
+	s.waitListen.Done()
 	for {
-		conn, err := listener.Accept()
+		conn, err := s.listener.Accept()
 		if err != nil {
 			return err
 		}
-		fmt.Println("Hello", conn.RemoteAddr())
+		log.Println("Connection from ", conn.RemoteAddr())
 		go func() {
-			defer conn.Close()
-			err := s.reader.Listen(conn)
+			session := &message.FluentSession{
+				Reader:    s.reader,
+				SharedKey: s.SharedKey,
+				Hostname:  s.Hostname,
+			}
+			err := session.Loop(conn)
 			if err != nil {
-				log.Println(err)
+				if err == io.EOF {
+					log.Println(conn.RemoteAddr(), "is closed")
+				} else {
+					log.Println("Error from", conn.RemoteAddr(), err)
+				}
 				return
 			}
 		}()

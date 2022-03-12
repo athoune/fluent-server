@@ -8,7 +8,11 @@ const logger = new FluentClient("tag_prefix", {
     timeout: 1000, // 1 second
   },
   eventMode: "Forward",
-  //ack: {},
+  ack: {},
+  security: {
+    clientHostname: "client.localdomain",
+    sharedKey: "popo"
+  }
 });
 
 
