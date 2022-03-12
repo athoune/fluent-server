@@ -72,6 +72,10 @@ func (s *FluentSession) doHelo() error {
 	if err != nil {
 		return err
 	}
+	err = s.Flush()
+	if err != nil {
+		return err
+	}
 	s.step = WaitingForPing
 	return nil
 }

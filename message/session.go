@@ -1,6 +1,7 @@
 package message
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -31,12 +32,23 @@ type FluentSession struct {
 	step           Step
 	Hostname       string
 	PasswordForKey PasswordForKey
+	flusher        Flusher
+}
+
+type Flusher interface {
+	Flush() error
+}
+
+func (s *FluentSession) Flush() error {
+	return s.flusher.Flush()
 }
 
 func (s *FluentSession) Loop(conn io.ReadWriteCloser) error {
 	defer conn.Close()
+	bufferedWriter := bufio.NewWriter(conn)
+	s.flusher = bufferedWriter
 	s.decoder = msgpack.NewDecoder(conn)
-	s.encoder = msgpack.NewEncoder(conn)
+	s.encoder = msgpack.NewEncoder(bufferedWriter)
 	//s.encoder.UseCompactInts(true)
 	//s.encoder.UseCompactFloats(true)
 
