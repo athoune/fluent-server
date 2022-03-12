@@ -88,8 +88,9 @@ func (s *FluentSession) handlePing(l int, _type string) error {
 	}
 
 	err = ping.ValidateSharedKeyHexdigest(string(s.nonce), s.SharedKey)
+	msg := ""
 	if err != nil {
-		return s.doPong(string(ping.shared_key_salt), err.Error())
+		msg = err.Error()
 	}
-	return s.doPong(string(ping.shared_key_salt), "")
+	return s.doPong(string(ping.shared_key_salt), msg)
 }
