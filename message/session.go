@@ -61,11 +61,13 @@ func (s *FluentSession) Loop(conn io.ReadWriteCloser) error {
 	for {
 		err := s.handleMessage()
 		if err != nil {
+			client := conn.(net.Conn).RemoteAddr().String()
 			if err == io.EOF {
-				fmt.Println("Connection closed", conn.(net.Conn).RemoteAddr().String())
+				fmt.Println("Connection closed", client)
 				return nil
 			}
-			fmt.Println("Error : ", err)
+			fmt.Println("Error : ", err, client)
+			conn.Close()
 			return err
 		}
 	}
@@ -104,6 +106,7 @@ func (s *FluentSession) handleMessage() error {
 		}
 		return s.handlePing(l, _type)
 	case WaitingForEvents:
+		defer fmt.Println("Events")
 		return s.HandleEvents(l, _type)
 	default:
 		return fmt.Errorf("unknown step : %v", s.step)
