@@ -36,7 +36,6 @@ func NewTLS(handler message.HandlerFunc, cfg *tls.Config) (*Server, error) {
 	s.useUDP = false
 	s.useMTLS = true
 	s.tlsConfig = cfg
-	s.Logger = log.Default()
 	return s, nil
 }
 
