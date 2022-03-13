@@ -10,6 +10,12 @@ See https://github.com/fluent/fluentd/wiki/Forward-Protocol-Specification-v1
 
  * [x] UDP subprotocol
  * [x] Hearthbeat
- * [x] array of events
  * [x] ack
  * [x] mTls authentication
+ * [x] shared key
+ * [x] message mode
+ * [x] forward mode
+ * [x] packed forward
+ * [x] compressed packed forward
+ * [ ] TlS
+ * [ ] username/password authentication
