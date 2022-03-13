@@ -63,7 +63,13 @@ func (s *FluentSession) Loop(conn io.ReadWriteCloser) error {
 	for {
 		err := s.handleMessage()
 		if err != nil {
-			client := conn.(net.Conn).RemoteAddr().String()
+			var client string
+			nconn, ok := conn.(net.Conn)
+			if ok {
+				client = nconn.RemoteAddr().String()
+			} else {
+				client = ""
+			}
 			if err == io.EOF {
 				s.Logger.Println("Connection closed", client)
 				return nil
