@@ -1,6 +1,8 @@
 package message
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"log"
 	"net"
@@ -13,6 +15,32 @@ import (
 )
 
 func TestMode(t *testing.T) {
+	buff := &bytes.Buffer{}
+	encoder := msgpack.NewEncoder(buff)
+	err := encoder.Encode([]interface{}{1441588984, map[string]interface{}{
+		"message": "foo",
+	}})
+	assert.NoError(t, err)
+	err = encoder.Encode([]interface{}{1441588985, map[string]interface{}{
+		"message": "bar",
+	}})
+	assert.NoError(t, err)
+	packed := buff.Bytes()
+
+	buff2 := &bytes.Buffer{}
+	compress := gzip.NewWriter(buff2)
+	encoder = msgpack.NewEncoder(compress)
+	err = encoder.Encode([]interface{}{1441588984, map[string]interface{}{
+		"message": "foo",
+	}})
+	assert.NoError(t, err)
+	err = encoder.Encode([]interface{}{1441588985, map[string]interface{}{
+		"message": "bar",
+	}})
+	assert.NoError(t, err)
+	compress.Close() // it flush too
+	compressPacked := buff2.Bytes()
+
 	for _, m := range []struct {
 		size    int
 		message interface{}
@@ -43,6 +71,23 @@ func TestMode(t *testing.T) {
 					"message": "baz",
 				},
 				map[string]interface{}{},
+			},
+		},
+		{
+			size: 2,
+			message: []interface{}{
+				"tag.name",
+				packed,
+			},
+		},
+		{
+			size: 2,
+			message: []interface{}{
+				"tag.name",
+				compressPacked,
+				map[string]interface{}{
+					"compressed": "gzip",
+				},
 			},
 		},
 	} {
