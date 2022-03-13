@@ -2,7 +2,6 @@ package server
 
 import (
 	"crypto/tls"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -54,27 +53,34 @@ type Server struct {
 func (s *Server) ListenAndServe(address string) error {
 
 	if s.useUDP {
+		a, err := net.ResolveUDPAddr("udp", address)
+		if err != nil {
+			return err
+		}
+		listener, err := net.ListenUDP("udp", a)
+		if err != nil {
+			return err
+		}
 		go func() {
-			a, err := net.ResolveUDPAddr("udp", address)
-			if err != nil {
-				panic(err)
-			}
-			listener, err := net.ListenUDP("udp", a)
-			if err != nil {
-				panic(err)
-			}
 			defer listener.Close()
 			buf := make([]byte, 1024)
 			for {
 				_, addr, err := listener.ReadFromUDP(buf)
 				if err != nil {
-					fmt.Println(err)
-					return
+					s.Logger.Printf("UDP read error : %v\n", err)
+					continue
 				}
-				re, _ := net.DialUDP("udp", nil, addr)
-				defer re.Close()
-				re.Write(buf)
-				fmt.Println("Pong")
+				re, err := net.DialUDP("udp", nil, addr)
+				if err != nil {
+					s.Logger.Printf("UDP dial error : %v\n", err)
+					continue
+				}
+				_, err = re.Write(buf)
+				if err != nil {
+					s.Logger.Printf("UDP write error : %v\n", err)
+				}
+				re.Close()
+				s.Logger.Println("UDP Pong")
 			}
 		}()
 	}
