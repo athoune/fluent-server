@@ -48,6 +48,7 @@ type Server struct {
 	SharedKey  string
 	Hostname   string
 	Logger     *log.Logger
+	Users      func(string) []byte
 }
 
 func (s *Server) ListenAndServe(address string) error {
@@ -106,6 +107,7 @@ func (s *Server) ListenAndServe(address string) error {
 				SharedKey: s.SharedKey,
 				Hostname:  s.Hostname,
 				Logger:    s.Logger,
+				Users:     s.Users,
 			}
 			err := session.Loop(conn)
 			if err != nil {

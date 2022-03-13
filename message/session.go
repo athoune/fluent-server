@@ -35,6 +35,7 @@ type FluentSession struct {
 	PasswordForKey PasswordForKey
 	flusher        Flusher
 	Logger         *log.Logger
+	Users          func(string) []byte
 }
 
 type Flusher interface {
