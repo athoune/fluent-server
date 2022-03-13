@@ -8,7 +8,6 @@ Features
 
 See https://github.com/fluent/fluentd/wiki/Forward-Protocol-Specification-v1
 
- * [x] UDP subprotocol
  * [x] Hearthbeat
  * [x] ack
  * [x] mTls authentication
@@ -17,5 +16,6 @@ See https://github.com/fluent/fluentd/wiki/Forward-Protocol-Specification-v1
  * [x] forward mode
  * [x] packed forward
  * [x] compressed packed forward
+ * [ ] UDP subprotocol
  * [ ] TlS
  * [ ] username/password authentication
