@@ -4,6 +4,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net"
 	"sync"
 	"testing"
@@ -37,6 +38,7 @@ func TestSession(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	var myRecord map[string]interface{}
 	s, err := mockupServer(&FluentSession{
+		Logger: log.Default(),
 		Reader: New(func(tag string, time *time.Time, record map[string]interface{}) error {
 			fmt.Println("record", record)
 			wg.Done()
@@ -80,6 +82,7 @@ func TestSessionSharedKey(t *testing.T) {
 	var myRecord map[string]interface{}
 	const shared_key = "beuha"
 	s, err := mockupServer(&FluentSession{
+		Logger:    log.Default(),
 		SharedKey: shared_key,
 		Hostname:  "server.example.com",
 		Reader: New(func(tag string, time *time.Time, record map[string]interface{}) error {
