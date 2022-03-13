@@ -2,8 +2,6 @@ package message
 
 import (
 	"crypto/rand"
-	"encoding/hex"
-	"fmt"
 )
 
 func random(size int) ([]byte, error) {
@@ -29,7 +27,7 @@ func (s *FluentSession) doHelo() error {
 			return err
 		}
 	}
-	fmt.Println("< HELO")
+	s.Logger.Println("< HELO")
 	err = s.encoder.EncodeArrayLen(2)
 	if err != nil {
 		return err
@@ -38,11 +36,6 @@ func (s *FluentSession) doHelo() error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf(`< nonce : %s
-  auth: %s
-  keepAlive: %v
-`, hex.EncodeToString(s.nonce), s.hashSalt, true)
 
 	err = s.encoder.EncodeMapLen(3)
 	if err != nil {

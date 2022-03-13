@@ -18,6 +18,7 @@ func New(handler message.HandlerFunc) (*Server, error) {
 	s := &Server{
 		reader:     message.New(handler),
 		waitListen: wg,
+		Logger:     log.Default(),
 	}
 	var err error
 	s.Hostname, err = os.Hostname()
@@ -47,6 +48,7 @@ type Server struct {
 	waitListen *sync.WaitGroup
 	SharedKey  string
 	Hostname   string
+	Logger     *log.Logger
 }
 
 func (s *Server) ListenAndServe(address string) error {
@@ -97,13 +99,14 @@ func (s *Server) ListenAndServe(address string) error {
 				Reader:    s.reader,
 				SharedKey: s.SharedKey,
 				Hostname:  s.Hostname,
+				Logger:    s.Logger,
 			}
 			err := session.Loop(conn)
 			if err != nil {
 				if err == io.EOF {
-					log.Println(conn.RemoteAddr(), "is closed")
+					s.Logger.Println(conn.RemoteAddr(), "is closed")
 				} else {
-					log.Println("Error from", conn.RemoteAddr(), err)
+					s.Logger.Println("Error from", conn.RemoteAddr(), err)
 				}
 				return
 			}

@@ -3,9 +3,9 @@ package message
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/vmihailenco/msgpack/v5"
 	"github.com/vmihailenco/msgpack/v5/msgpcode"
@@ -32,7 +32,7 @@ func (s *FluentSession) decodeMessages(tag string, l int) error {
 }
 
 func (s *FluentSession) forwardMode(tag string, l int) error {
-	log.Println("Forward mode")
+	s.Logger.Println("Forward mode")
 	size, err := s.decoder.DecodeArrayLen()
 	if err != nil {
 		return err
@@ -52,9 +52,9 @@ func (s *FluentSession) forwardMode(tag string, l int) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("options", option)
+		s.Logger.Println("options", option)
 		if option.Chunk != "" {
-			fmt.Println("ack", option.Chunk)
+			s.Logger.Println("ack", option.Chunk)
 			err = s.Ack(option.Chunk)
 			if err != nil {
 				return err
@@ -73,7 +73,7 @@ func (s *FluentSession) forwardMode(tag string, l int) error {
 		return io.EOF
 	} else {
 		if option.Chunk == "" {
-			fmt.Println("No chunk, so I close the connection.")
+			s.Logger.Println("No chunk, so I close the connection.")
 			return io.EOF
 		}
 	}
@@ -81,7 +81,7 @@ func (s *FluentSession) forwardMode(tag string, l int) error {
 }
 
 func (s *FluentSession) messageMode(tag string, l int) error {
-	log.Println("Message Mode")
+	s.Logger.Println("Message Mode")
 	if l > 4 {
 		return fmt.Errorf("message too large: %d", l)
 	}
@@ -98,7 +98,7 @@ func (s *FluentSession) messageMode(tag string, l int) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("option", option)
+		s.Logger.Println("option", option)
 	}
 	return s.Reader.eventHandler(tag, ts, record)
 }
@@ -116,7 +116,7 @@ func (s *FluentSession) packedForwardMode(tag string, l int) error {
 			return err
 		}
 	case msgpcode.IsString(firstCode):
-		return fmt.Errorf("PackedForward as string is deprecated")
+		return errors.New("PackedForward as string is deprecated")
 	}
 	var option *Option
 	if l == 3 {
@@ -131,7 +131,7 @@ func (s *FluentSession) packedForwardMode(tag string, l int) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("CompressedPackedForward")
+		s.Logger.Println("CompressedPackedForward")
 		decoder = msgpack.NewDecoder(r)
 	} else {
 		decoder = msgpack.NewDecoder(bytes.NewBuffer(entries))
