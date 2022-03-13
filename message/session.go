@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 
 	"github.com/vmihailenco/msgpack/v5"
@@ -33,6 +34,7 @@ type FluentSession struct {
 	Hostname       string
 	PasswordForKey PasswordForKey
 	flusher        Flusher
+	Logger         *log.Logger
 }
 
 type Flusher interface {
@@ -63,10 +65,10 @@ func (s *FluentSession) Loop(conn io.ReadWriteCloser) error {
 		if err != nil {
 			client := conn.(net.Conn).RemoteAddr().String()
 			if err == io.EOF {
-				fmt.Println("Connection closed", client)
+				s.Logger.Println("Connection closed", client)
 				return nil
 			}
-			fmt.Println("Error : ", err, client)
+			s.Logger.Println("Error : ", err, client)
 			conn.Close()
 			return err
 		}
@@ -98,7 +100,7 @@ func (s *FluentSession) handleMessage() error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Type : [%s]\n", _type)
+	s.Logger.Printf("Type : [%s]\n", _type)
 	switch s.step {
 	case WaitingForPing:
 		if _type != "PING" {
@@ -118,7 +120,7 @@ func (s *FluentSession) HandleHearthBeat() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Hearthbeat")
+	s.Logger.Println("Hearthbeat")
 	/*
 		err = s.encoder.EncodeNil()
 		if err != nil {

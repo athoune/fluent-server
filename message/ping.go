@@ -74,7 +74,7 @@ func (p *Ping) ValidateSharedKeyHexdigest(nonce, sharedKey string) error {
 }
 
 func (s *FluentSession) handlePing(l int, _type string) error {
-	fmt.Println("> PING")
+	s.Logger.Println("> PING")
 	if _type != "PING" {
 		return fmt.Errorf("wrong type : %s", _type)
 	}

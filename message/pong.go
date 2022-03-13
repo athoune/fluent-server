@@ -3,7 +3,6 @@ package message
 import (
 	"crypto/sha512"
 	"encoding/hex"
-	"fmt"
 )
 
 func (s *FluentSession) doPong(shared_key_salt, msg string) error {
@@ -40,7 +39,7 @@ func (s *FluentSession) doPong(shared_key_salt, msg string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("< PONG")
+	s.Logger.Println("< PONG")
 
 	s.step = WaitingForEvents
 	return nil
