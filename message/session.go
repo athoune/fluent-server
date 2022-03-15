@@ -36,6 +36,7 @@ type FluentSession struct {
 	flusher        Flusher
 	Logger         *log.Logger
 	Users          func(string) []byte
+	Debug          bool
 }
 
 type Flusher interface {
@@ -44,6 +45,12 @@ type Flusher interface {
 
 func (s *FluentSession) Flush() error {
 	return s.flusher.Flush()
+}
+
+func (s *FluentSession) debug(v ...interface{}) {
+	if s.Debug {
+		log.Println("🐞", fmt.Sprint(v...))
+	}
 }
 
 func (s *FluentSession) Loop(conn io.ReadWriteCloser) error {
