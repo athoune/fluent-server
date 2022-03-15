@@ -49,6 +49,7 @@ type Server struct {
 	Hostname   string
 	Logger     *log.Logger
 	Users      func(string) []byte
+	Debug      bool
 }
 
 func (s *Server) ListenAndServe(address string) error {
@@ -108,6 +109,7 @@ func (s *Server) ListenAndServe(address string) error {
 				Hostname:  s.Hostname,
 				Logger:    s.Logger,
 				Users:     s.Users,
+				Debug:     s.Debug,
 			}
 			err := session.Loop(conn)
 			if err != nil {
