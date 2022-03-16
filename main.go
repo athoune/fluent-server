@@ -52,5 +52,8 @@ server.key: %s
 		l = "localhost:24224"
 	}
 	fmt.Println("Listen", l)
-	s.ListenAndServe(l)
+	err = s.ListenAndServe(l)
+	if err != nil {
+		panic(err)
+	}
 }

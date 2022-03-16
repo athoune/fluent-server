@@ -70,7 +70,27 @@ func (p *Ping) ValidateSharedKeyHexdigest(nonce, sharedKey string) error {
 		return nil
 	}
 	return errors.New("shared key mismatch")
+}
 
+func (p *Ping) ValidatePassword(hashsalt []byte, user func(string) []byte) error {
+	if p.username == "" {
+		return errors.New("username is mandatory")
+	}
+	if p.password == "" {
+		return errors.New("password is mandatory")
+	}
+	pazzword := user(p.username)
+	if pazzword == nil || len(p.password) == 0 {
+		return fmt.Errorf("unknown user : %s", p.username)
+	}
+	password := sha512.New()
+	password.Write(hashsalt)
+	password.Write([]byte(p.username))
+	password.Write(pazzword)
+	if hex.EncodeToString(password.Sum(nil)) == p.password {
+		return nil
+	}
+	return fmt.Errorf("bad password for user : %s", p.username)
 }
 
 func (s *FluentSession) handlePing(l int, _type string) error {
@@ -90,7 +110,16 @@ func (s *FluentSession) handlePing(l int, _type string) error {
 	err = ping.ValidateSharedKeyHexdigest(string(s.nonce), s.SharedKey)
 	msg := ""
 	if err != nil {
+		s.Logger.Printf("Bad shared key digest : %v\n", err)
 		msg = err.Error()
+	} else {
+		if len(s.hashSalt) > 0 {
+			err = ping.ValidatePassword(s.hashSalt, s.Users)
+			if err != nil {
+				s.Logger.Printf("Bad password : %v\n", err)
+			}
+			msg = "bad password"
+		}
 	}
 	return s.doPong(string(ping.shared_key_salt), msg)
 }

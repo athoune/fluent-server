@@ -39,7 +39,7 @@ func (s *FluentSession) doPong(shared_key_salt, msg string) error {
 	if err != nil {
 		return err
 	}
-	s.Logger.Println("< PONG")
+	s.debug("< PONG")
 
 	s.step = WaitingForEvents
 	return nil
