@@ -94,7 +94,7 @@ func (p *Ping) ValidatePassword(hashsalt []byte, user func(string) []byte) error
 }
 
 func (s *FluentSession) handlePing(l int, _type string) error {
-	s.Logger.Println("> PING")
+	s.debug("> PING")
 	if _type != "PING" {
 		return fmt.Errorf("wrong type : %s", _type)
 	}

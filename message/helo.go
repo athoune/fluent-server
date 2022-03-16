@@ -27,7 +27,7 @@ func (s *FluentSession) doHelo() error {
 			return err
 		}
 	}
-	s.Logger.Println("< HELO")
+	s.debug("< HELO")
 	err = s.encoder.EncodeArrayLen(2)
 	if err != nil {
 		return err
