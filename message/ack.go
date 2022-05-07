@@ -13,9 +13,6 @@ func (s *FluentSession) Ack(chunk string) error {
 	if err != nil {
 		return err
 	}
-	if err != nil {
-		return err
-	}
 	s.debug("< ACK")
 	return s.Flush()
 }
