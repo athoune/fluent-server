@@ -15,8 +15,8 @@ venv:
 
 test:
 	go test -timeout 30s -cover \
-		github.com/factorysh/fluent-server/message \
-		github.com/factorysh/fluent-server/server
+		github.com/athoune/fluent-server/message \
+		github.com/athoune/fluent-server/server
 
 clean:
 	rm -rf venv bin

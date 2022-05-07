@@ -1,4 +1,4 @@
-module github.com/factorysh/fluent-server
+module github.com/athoune/fluent-server
 
 go 1.15
 

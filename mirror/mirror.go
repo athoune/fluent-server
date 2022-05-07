@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/factorysh/fluent-server/event"
+	"github.com/athoune/fluent-server/event"
 )
 
 type Mirror struct {

@@ -8,7 +8,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/factorysh/fluent-server/message"
+	"github.com/athoune/fluent-server/message"
 )
 
 func New(handler message.HandlerFunc) (*Server, error) {

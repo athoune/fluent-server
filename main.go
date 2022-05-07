@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/factorysh/fluent-server/mirror"
-	"github.com/factorysh/fluent-server/server"
+	"github.com/athoune/fluent-server/mirror"
+	"github.com/athoune/fluent-server/server"
 )
 
 func main() {
