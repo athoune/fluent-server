@@ -10,6 +10,7 @@ import (
 	"github.com/athoune/fluent-server/event"
 )
 
+// Mirror is a debug server that display events receeived from fluents, in HTTP
 type Mirror struct {
 	lock   *sync.Mutex
 	events map[string]event.Events

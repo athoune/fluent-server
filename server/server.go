@@ -11,6 +11,7 @@ import (
 	"github.com/athoune/fluent-server/message"
 )
 
+// New server, with an handler
 func New(handler message.HandlerFunc) (*Server, error) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
@@ -27,6 +28,7 @@ func New(handler message.HandlerFunc) (*Server, error) {
 	return s, nil
 }
 
+// New TLS server, with an handler
 func NewTLS(handler message.HandlerFunc, cfg *tls.Config) (*Server, error) {
 	s, err := New(handler)
 	if err != nil {
@@ -38,6 +40,7 @@ func NewTLS(handler message.HandlerFunc, cfg *tls.Config) (*Server, error) {
 	return s, nil
 }
 
+// Server listening fluentd protocol
 type Server struct {
 	reader     *message.FluentReader
 	useUDP     bool
@@ -52,6 +55,7 @@ type Server struct {
 	Debug      bool
 }
 
+// ListenAndServe an address
 func (s *Server) ListenAndServe(address string) error {
 
 	if s.useUDP {
