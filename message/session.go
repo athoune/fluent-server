@@ -83,8 +83,7 @@ func (s *FluentSession) Loop(conn io.ReadWriteCloser) error {
 				return nil
 			}
 			s.Logger.Println("Error : ", err, client)
-			conn.Close()
-			return err
+			return conn.Close()
 		}
 	}
 }

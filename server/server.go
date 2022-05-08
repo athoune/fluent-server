@@ -85,7 +85,10 @@ func (s *Server) ListenAndServe(address string) error {
 				if err != nil {
 					s.Logger.Printf("UDP write error : %v\n", err)
 				}
-				re.Close()
+				err = re.Close()
+				if err != nil {
+					s.Logger.Printf("UDP close error : %v\n", err)
+				}
 				s.Logger.Println("UDP Pong")
 			}
 		}()
