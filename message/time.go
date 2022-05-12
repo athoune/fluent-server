@@ -22,6 +22,12 @@ func decodeTime(decoder *msgpack.Decoder) (*time.Time, error) {
 			return nil, err
 		}
 		ts = time.Unix(int64(tRaw), 0)
+	case t == msgpcode.Int32:
+		tRaw, err := decoder.DecodeInt32()
+		if err != nil {
+			return nil, err
+		}
+		ts = time.Unix(int64(tRaw), 0)
 	case msgpcode.IsExt(t):
 		id, len, err := decoder.DecodeExtHeader()
 		if err != nil {

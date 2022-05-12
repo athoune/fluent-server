@@ -25,7 +25,7 @@ func (s *FluentSession) decodeMessages(tag string, l int) error {
 		err = s.packedForwardMode(tag, l)
 		s.debug("> message in packed forward mode")
 
-	case firstCode == msgpcode.Uint32 || msgpcode.IsExt(firstCode): // Message Mode
+	case firstCode == msgpcode.Uint32 || firstCode == msgpcode.Int32 || msgpcode.IsExt(firstCode): // Message Mode
 		err = s.messageMode(tag, l)
 		s.debug("> message in message mode")
 	default:
