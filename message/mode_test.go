@@ -92,7 +92,7 @@ func TestMode(t *testing.T) {
 		},
 	} {
 		wg := &sync.WaitGroup{}
-		addr, err := mockupServer(&FluentSession{
+		s := &FluentSession{
 			Logger: log.Default(),
 			Reader: &FluentReader{
 				eventHandler: func(tag string, time *time.Time, record map[string]interface{}) error {
@@ -102,7 +102,9 @@ func TestMode(t *testing.T) {
 				},
 			},
 			step: WaitingForEvents,
-		})
+		}
+		UseDefaultMessageReader(s)
+		addr, err := mockupServer(s)
 		assert.NoError(t, err)
 		wg.Add(m.size)
 		client, err := net.Dial("tcp", addr.String())

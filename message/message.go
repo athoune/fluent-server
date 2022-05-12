@@ -6,6 +6,8 @@ message module implements the fluentd protocol, using msgpack
 
 import (
 	"time"
+
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type Event struct {
@@ -25,4 +27,10 @@ func New(eventHandler HandlerFunc) *FluentReader {
 	return &FluentReader{
 		eventHandler: eventHandler,
 	}
+}
+
+type MessagesReader interface {
+	ForwardMode(decoder *msgpack.Decoder, tag string, l int) error
+	PackedForwardMode(decoder *msgpack.Decoder, tag string, l int) error
+	MessageMode(decoder *msgpack.Decoder, tag string, l int) error
 }

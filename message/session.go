@@ -37,6 +37,7 @@ type FluentSession struct {
 	Logger         *log.Logger
 	Users          func(string) []byte
 	Debug          bool
+	MessagesReader MessagesReader
 }
 
 type Flusher interface {
