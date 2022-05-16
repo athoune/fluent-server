@@ -16,7 +16,10 @@ venv:
 test:
 	go test -timeout 30s -cover \
 		github.com/athoune/fluent-server/message \
-		github.com/athoune/fluent-server/server
+		github.com/athoune/fluent-server/server \
+		github.com/athoune/fluent-server/wire \
+		github.com/athoune/fluent-server/defaultreader
+
 
 clean:
 	rm -rf venv bin
