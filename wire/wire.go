@@ -2,8 +2,10 @@ package wire
 
 import (
 	"bufio"
-	"bytes"
+	"context"
 	"io"
+	"log"
+	"net"
 
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -41,36 +43,55 @@ func (w *Wire) Flush() error {
 	return w.flusher.Flush()
 }
 
-type MockupConn struct {
-	In  *bytes.Buffer
-	Out *bytes.Buffer
-}
-
 type MockupClient struct {
 	Encoder *msgpack.Encoder
 	Decoder *msgpack.Decoder
 }
 
-func NewMockups() (*MockupConn, *MockupClient) {
-	conn := &MockupConn{
-		In:  &bytes.Buffer{},
-		Out: &bytes.Buffer{},
+type MockupServer struct {
+	listen  net.Listener
+	handler func(w *Wire) error
+}
+
+func (m *MockupServer) Start(ctx context.Context) {
+	go func() {
+		<-ctx.Done()
+		m.listen.Close()
+	}()
+	go func() {
+		for {
+			conn, err := m.listen.Accept()
+			if err != nil {
+				break
+			}
+			go func() {
+				w := New(conn)
+				err = m.handler(w)
+				if err != nil {
+					log.Panic(err)
+				}
+			}()
+		}
+	}()
+}
+
+func NewMockups(handler func(w *Wire) error) (*MockupClient, *MockupServer, error) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, nil, err
+	}
+	client, err := net.Dial("tcp", l.Addr().String())
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return conn, &MockupClient{
-		Encoder: msgpack.NewEncoder(conn.In),
-		Decoder: msgpack.NewDecoder(conn.Out),
-	}
-}
-
-func (m *MockupConn) Write(p []byte) (n int, err error) {
-	return m.In.Write(p)
-}
-
-func (m *MockupConn) Read(p []byte) (n int, err error) {
-	return m.Out.Read(p)
-}
-
-func (m *MockupConn) Close() error {
-	return nil
+	return &MockupClient{
+			Encoder: msgpack.NewEncoder(client),
+			Decoder: msgpack.NewDecoder(client),
+		},
+		&MockupServer{
+			listen:  l,
+			handler: handler,
+		},
+		nil
 }
