@@ -13,7 +13,7 @@ func random(size int) ([]byte, error) {
 	return b, nil
 }
 
-func (s *FluentSession) doHelo() error {
+func (s *FluentSession) DoHelo() error {
 	var err error
 	s.nonce, err = random(16)
 	if err != nil {
@@ -28,44 +28,44 @@ func (s *FluentSession) doHelo() error {
 		}
 	}
 	s.debug("< HELO")
-	err = s.encoder.EncodeArrayLen(2)
+	err = s.Wire.Encoder.EncodeArrayLen(2)
 	if err != nil {
 		return err
 	}
-	err = s.encoder.EncodeString("HELO")
+	err = s.Wire.Encoder.EncodeString("HELO")
 	if err != nil {
 		return err
 	}
 
-	err = s.encoder.EncodeMapLen(3)
+	err = s.Wire.Encoder.EncodeMapLen(3)
 	if err != nil {
 		return err
 	}
-	err = s.encoder.EncodeString("nonce")
+	err = s.Wire.Encoder.EncodeString("nonce")
 	if err != nil {
 		return err
 	}
-	err = s.encoder.EncodeBytes(s.nonce)
+	err = s.Wire.Encoder.EncodeBytes(s.nonce)
 	if err != nil {
 		return err
 	}
-	err = s.encoder.EncodeString("auth")
+	err = s.Wire.Encoder.EncodeString("auth")
 	if err != nil {
 		return err
 	}
-	err = s.encoder.EncodeBytes(s.hashSalt)
+	err = s.Wire.Encoder.EncodeBytes(s.hashSalt)
 	if err != nil {
 		return err
 	}
-	err = s.encoder.EncodeString("keepalive")
+	err = s.Wire.Encoder.EncodeString("keepalive")
 	if err != nil {
 		return err
 	}
-	err = s.encoder.EncodeBool(true)
+	err = s.Wire.Encoder.EncodeBool(true)
 	if err != nil {
 		return err
 	}
-	err = s.Flush()
+	err = s.Wire.Flush()
 	if err != nil {
 		return err
 	}

@@ -9,7 +9,7 @@ type Option struct {
 	Stuff      map[string]interface{}
 }
 
-func decodeOption(decoder *msgpack.Decoder) (*Option, error) {
+func DecodeOption(decoder *msgpack.Decoder) (*Option, error) {
 	opt := &Option{
 		Stuff: make(map[string]interface{}),
 	}

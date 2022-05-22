@@ -1,14 +1,14 @@
 package message
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
 
-	"github.com/vmihailenco/msgpack/v5"
+	"github.com/athoune/fluent-server/options"
+	"github.com/athoune/fluent-server/wire"
 	"github.com/vmihailenco/msgpack/v5/msgpcode"
 )
 
@@ -24,76 +24,63 @@ const (
 type PasswordForKey func(string) string
 
 type FluentSession struct {
+	options        *options.FluentOptions
 	nonce          []byte
 	hashSalt       []byte
-	encoder        *msgpack.Encoder
-	decoder        *msgpack.Decoder
-	Reader         *FluentReader
-	SharedKey      string
+	Wire           *wire.Wire
 	step           Step
-	Hostname       string
 	PasswordForKey PasswordForKey
-	flusher        Flusher
-	Logger         *log.Logger
-	Users          func(string) []byte
-	Debug          bool
-	MessagesReader MessagesReader
-}
-
-type Flusher interface {
-	Flush() error
-}
-
-func (s *FluentSession) Flush() error {
-	return s.flusher.Flush()
+	client         string
+	messagesReader options.MessagesReader
 }
 
 func (s *FluentSession) debug(v ...interface{}) {
-	if s.Debug {
+	if s.options.Debug {
 		log.Println("🐞", fmt.Sprint(v...))
 	}
 }
 
-func (s *FluentSession) Loop(conn io.ReadWriteCloser) error {
-	defer conn.Close()
-	bufferedWriter := bufio.NewWriter(conn)
-	s.flusher = bufferedWriter
-	s.decoder = msgpack.NewDecoder(conn)
-	s.encoder = msgpack.NewEncoder(bufferedWriter)
-	//s.encoder.UseCompactInts(true)
-	//s.encoder.UseCompactFloats(true)
-
-	if s.SharedKey == "" {
+func NewSession(opts *options.FluentOptions, conn io.ReadWriteCloser) *FluentSession {
+	s := &FluentSession{
+		Wire:    wire.New(conn),
+		options: opts,
+	}
+	if s.options.SharedKey == "" {
 		s.step = WaitingForEvents
 	} else {
 		s.step = WatingForHelo
 	}
+	nconn, ok := conn.(net.Conn)
+	if ok {
+		s.client = nconn.RemoteAddr().String()
+	}
+	s.messagesReader = opts.MessagesReaderFactory(
+		opts.Logger,
+		opts.MessagesReaderConfig,
+	)
 
+	return s
+}
+
+func (s *FluentSession) Loop() error {
 	for {
 		err := s.handleMessage()
 		if err != nil {
-			var client string
-			nconn, ok := conn.(net.Conn)
-			if ok {
-				client = nconn.RemoteAddr().String()
-			} else {
-				client = ""
-			}
 			if err == io.EOF {
-				s.Logger.Println("Connection closed", client)
+				s.options.Logger.Println("Connection closed", s.client)
 				return nil
 			}
-			s.Logger.Println("Error : ", err, client)
-			return conn.Close()
+			s.options.Logger.Println("Error : ", err, s.client)
+			return s.Wire.Close()
 		}
 	}
 }
 
 func (s *FluentSession) handleMessage() error {
 	if s.step == WatingForHelo {
-		return s.doHelo()
+		return s.DoHelo()
 	}
-	code, err := s.decoder.PeekCode()
+	code, err := s.Wire.Decoder.PeekCode()
 	if err != nil {
 		return err
 	}
@@ -103,38 +90,43 @@ func (s *FluentSession) handleMessage() error {
 	if !msgpcode.IsFixedArray(code) {
 		return fmt.Errorf("unexpected code %v", code)
 	}
-	l, err := s.decoder.DecodeArrayLen()
+	l, err := s.Wire.Decoder.DecodeArrayLen()
 	if err != nil {
 		return err
 	}
 	if l == 0 {
 		return errors.New("empty array")
 	}
-	_type, err := s.decoder.DecodeString()
+	_type, err := s.Wire.Decoder.DecodeString()
 	if err != nil {
 		return err
 	}
-	s.Logger.Printf("Type : [%s]\n", _type)
+	s.options.Logger.Printf("Type : [%s]\n", _type)
 	switch s.step {
 	case WaitingForPing:
 		if _type != "PING" {
 			return fmt.Errorf("waiting for a ping not %s", _type)
 		}
-		return s.handlePing(l, _type)
+		err = s.HandlePing(s.Wire, l, _type)
+		if err != nil {
+			return err
+		}
+		s.step = WaitingForEvents
 	case WaitingForEvents:
 		defer fmt.Println("Events")
 		return s.HandleEvents(l, _type)
 	default:
 		return fmt.Errorf("unknown step : %v", s.step)
 	}
+	return nil
 }
 
 func (s *FluentSession) HandleHearthBeat() error {
-	err := s.decoder.DecodeNil()
+	err := s.Wire.Decoder.DecodeNil()
 	if err != nil {
 		return err
 	}
-	s.Logger.Println("Hearthbeat")
+	s.options.Logger.Println("Hearthbeat")
 	/*
 		err = s.encoder.EncodeNil()
 		if err != nil {
