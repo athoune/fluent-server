@@ -10,23 +10,21 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-type BufferCLoser struct {
-	*bytes.Buffer
-}
-
-func (b *BufferCLoser) Close() error {
-	return nil
-}
-
 func TestRead(t *testing.T) {
 	b := &BufferCLoser{&bytes.Buffer{}}
 	w := New(b)
 	defer w.Close()
 	encoder := msgpack.NewEncoder(b)
-	err := encoder.Encode(map[string]interface{}{
+	err := encoder.Encode(1441588984)
+	assert.NoError(t, err)
+	err = encoder.Encode(map[string]interface{}{
 		"Hello": "World",
 	})
 	assert.NoError(t, err)
+	var i interface{}
+	err = w.Decoder.Decode(&i)
+	assert.NoError(t, err)
+	assert.Equal(t, uint32(1441588984), i)
 	var v interface{}
 	err = w.Decoder.Decode(&v)
 	assert.NoError(t, err)
