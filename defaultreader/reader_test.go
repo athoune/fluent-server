@@ -17,30 +17,58 @@ func TestReader(t *testing.T) {
 	defer server.Close()
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 
-	reader := &DefaultMessagesReader{
-		Logger: log.Default(),
-		EventHandler: func(tag string, time *time.Time, record map[string]interface{}) error {
-			wg.Done()
-			return nil
-		},
+	handler := func(tag string, time *time.Time, record map[string]interface{}) error {
+		wg.Done()
+		return nil
 	}
 
+	factory := DefaultMessagesReaderFactory(handler)
+
+	reader := factory(log.Default(), nil)
+
 	go func() {
-		code, err := server.Decoder.PeekCode()
-		assert.NoError(t, err)
-		assert.True(t, msgpcode.IsFixedArray(code))
-		l, err := server.Decoder.DecodeArrayLen()
-		assert.NoError(t, err)
-		assert.Equal(t, 2, l)
-		err = reader.MessageMode(server, "myTag")
-		assert.NoError(t, err)
+		for {
+			code, err := server.Decoder.PeekCode()
+			assert.NoError(t, err)
+			assert.True(t, msgpcode.IsFixedArray(code))
+			l, err := server.Decoder.DecodeArrayLen()
+			assert.NoError(t, err)
+			firstCode, err := server.Decoder.PeekCode()
+			switch {
+			case firstCode == msgpcode.Uint32 || firstCode == msgpcode.Int32 || msgpcode.IsExt(firstCode): // Message Mode
+				assert.Equal(t, 2, l)
+				err = reader.MessageMode(server, "myTag")
+				assert.NoError(t, err)
+			case msgpcode.IsFixedArray(firstCode): // Forward mode
+				err = reader.ForwardMode(server, "myTag")
+				assert.NoError(t, err)
+			default:
+				assert.True(t, false)
+			}
+		}
 	}()
 
+	wg.Add(1)
 	err := client.Encoder.Encode([]interface{}{1441588984, map[string]interface{}{
 		"message": "foo",
 	}})
+	assert.NoError(t, err)
+	err = client.Flush()
+	assert.NoError(t, err)
+	wg.Wait()
+
+	wg.Add(2)
+	err = client.Encoder.Encode([]interface{}{
+		[]interface{}{
+			[]interface{}{1441588984, map[string]interface{}{
+				"message": "foo",
+			}},
+			[]interface{}{1441588985, map[string]interface{}{
+				"message": "bar",
+			}},
+		},
+	})
 	assert.NoError(t, err)
 	err = client.Flush()
 	assert.NoError(t, err)
