@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/athoune/fluent-server/defaultreader"
+	"github.com/athoune/fluent-server/options"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -13,10 +15,13 @@ import (
 func TestServer(t *testing.T) {
 	wg := &sync.WaitGroup{}
 
-	server, err := New(func(tag string, time *time.Time, record map[string]interface{}) error {
-		wg.Done()
-		return nil
-	})
+	config := &options.FluentOptions{
+		MessagesReaderFactory: defaultreader.DefaultMessagesReaderFactory(func(tag string, time *time.Time, record map[string]interface{}) error {
+			wg.Done()
+			return nil
+		}),
+	}
+	server, err := New(config)
 	assert.NoError(t, err)
 	server.useUDP = false
 	go server.ListenAndServe("127.0.0.1:0")
