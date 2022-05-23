@@ -3,6 +3,7 @@ package options
 import (
 	"log"
 
+	"github.com/athoune/fluent-server/msg"
 	"github.com/athoune/fluent-server/wire"
 )
 
@@ -28,7 +29,7 @@ type FluentReader struct {
 type MessagesReaderFactory func(log *log.Logger, cfg map[string]interface{}) MessagesReader
 
 type MessagesReader interface {
-	ForwardMode(wire *wire.Wire, tag string, l int) error
-	PackedForwardMode(wire *wire.Wire, tag string, l int) error
-	MessageMode(wire *wire.Wire, tag string, l int) error
+	ForwardMode(wire *wire.Wire, tag string) error
+	PackedForwardMode(tag string, blob []byte, opt *msg.Option) error
+	MessageMode(wire *wire.Wire, tag string) error
 }

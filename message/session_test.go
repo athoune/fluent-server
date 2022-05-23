@@ -10,6 +10,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/athoune/fluent-server/msg"
 	"github.com/athoune/fluent-server/options"
 	"github.com/athoune/fluent-server/wire"
 	"github.com/davecgh/go-spew/spew"
@@ -74,19 +75,18 @@ func drain(wire *wire.Wire, value interface{}) error {
 	return nil
 }
 
-func (d *DummyMessagesReader) MessageMode(wire *wire.Wire, tag string, l int) error {
+func (d *DummyMessagesReader) MessageMode(wire *wire.Wire, tag string) error {
 	d.wg.Done()
-	fmt.Println("forward mode", tag, l)
+	fmt.Println("forward mode", tag)
 	var v interface{}
 	return drain(wire, &v)
 }
-func (d *DummyMessagesReader) PackedForwardMode(wire *wire.Wire, tag string, l int) error {
-	var v []byte
-	err := drain(wire, &v)
-	// FIXME
-	return err
+
+func (d *DummyMessagesReader) PackedForwardMode(tag string, blob []byte, opt *msg.Option) error {
+	return nil
 }
-func (d *DummyMessagesReader) ForwardMode(wire *wire.Wire, tag string, l int) error {
+
+func (d *DummyMessagesReader) ForwardMode(wire *wire.Wire, tag string) error {
 	var v [][]interface{}
 	err := drain(wire, &v)
 	if err != nil {

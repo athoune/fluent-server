@@ -38,7 +38,7 @@ func TestReader(t *testing.T) {
 	l, err := w.Decoder.DecodeArrayLen()
 	assert.NoError(t, err)
 	assert.Equal(t, 2, l)
-	err = reader.MessageMode(w, "myTag", l)
+	err = reader.MessageMode(w, "myTag")
 	assert.NoError(t, err)
 	wg.Wait()
 }
