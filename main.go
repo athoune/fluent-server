@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/athoune/fluent-server/defaultreader"
 	"github.com/athoune/fluent-server/mirror"
+	"github.com/athoune/fluent-server/options"
 	"github.com/athoune/fluent-server/server"
 )
 
@@ -13,6 +15,13 @@ func main() {
 	m := mirror.New()
 	var err error
 	var s *server.Server
+	config := &options.FluentOptions{
+		MessagesReaderFactory: defaultreader.DefaultMessagesReaderFactory(m.Handler),
+	}
+	sharedKey := os.Getenv("SHARED_KEY")
+	if sharedKey != "" {
+		config.SharedKey = sharedKey
+	}
 
 	caCrt := os.Getenv("CA_CRT")
 	if caCrt != "" {
@@ -25,19 +34,15 @@ ca.crt: %s
 server.crt: %s
 server.key: %s
 `, caCrt, os.Getenv("SRV_CRT"), os.Getenv("SRV_KEY"))
-		s, err = server.NewTLS(m.Handler, cfg)
+		s, err = server.NewTLS(config, cfg)
 		if err != nil {
 			panic(err)
 		}
 	} else {
-		s, err = server.New(m.Handler)
+		s, err = server.New(config)
 	}
 	if err != nil {
 		panic(err)
-	}
-	sharedKey := os.Getenv("SHARED_KEY")
-	if sharedKey != "" {
-		s.SharedKey = sharedKey
 	}
 
 	ll := os.Getenv("MIRROR_LISTEN")
