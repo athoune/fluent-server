@@ -48,8 +48,7 @@ func (r *DefaultMessagesReader) MessageMode(wire *wire.Wire, tag string) error {
 	return r.EventHandler(tag, ts, record)
 }
 
-func (r *DefaultMessagesReader) PackedForwardMode(tag string, blob []byte, opt *msg.Option) error {
-	var entries []byte
+func (r *DefaultMessagesReader) PackedForwardMode(tag string, entries []byte, opt *msg.Option) error {
 	var _decoder *msgpack.Decoder
 	if opt != nil && opt.Compressed == "gzip" {
 		rr, err := gzip.NewReader(bytes.NewBuffer(entries))
