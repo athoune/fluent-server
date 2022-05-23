@@ -5,6 +5,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"sync"
@@ -53,8 +54,16 @@ func mockupServer(ctx context.Context, opts *options.FluentOptions) (*Client, er
 			if err != nil {
 				panic(err)
 			}
-			session := NewSession(opts, conn)
-			go session.Loop()
+			go func() {
+				session := NewSession(opts, conn)
+				err := session.Loop()
+				if err != nil {
+					if err == io.EOF {
+						fmt.Println("closed connection")
+					}
+					panic(err)
+				}
+			}()
 		}
 	}()
 	return client, nil
@@ -120,7 +129,8 @@ func TestSession(t *testing.T) {
 		MessagesReaderFactory: DummyMessagesReaderFactory(wg, myRecord),
 	}
 	ctx, cancel := context.WithCancel(context.TODO())
-	defer cancel()
+	//defer cancel()
+	fmt.Println(cancel)
 	client, err := mockupServer(ctx, opt)
 	assert.NoError(t, err)
 
@@ -149,6 +159,7 @@ func TestSession(t *testing.T) {
 }
 
 func TestSessionSharedKey(t *testing.T) {
+
 	wg := &sync.WaitGroup{}
 	myRecord := make(map[string]interface{})
 	const shared_key = "beuha"
@@ -159,7 +170,8 @@ func TestSessionSharedKey(t *testing.T) {
 		MessagesReaderFactory: DummyMessagesReaderFactory(wg, myRecord),
 	}
 	ctx, cancel := context.WithCancel(context.TODO())
-	defer cancel()
+	//defer cancel()
+	fmt.Println(cancel)
 	client, err := mockupServer(ctx, opt)
 	assert.NoError(t, err)
 	assert.NoError(t, err)
