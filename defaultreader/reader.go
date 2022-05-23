@@ -30,7 +30,7 @@ func DefaultMessagesReaderFactory(eventHandler HandlerFunc) options.MessagesRead
 	return func(logger *log.Logger, cfg map[string]interface{}) options.MessagesReader {
 		return &DefaultMessagesReader{
 			Logger:       logger,
-			EventHandler: cfg["handler"].(HandlerFunc),
+			EventHandler: eventHandler,
 		}
 	}
 }
