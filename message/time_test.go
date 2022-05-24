@@ -25,7 +25,7 @@ func TestTime(t *testing.T) {
 	go func() {
 		ts, err := DecodeTime(decoder)
 		assert.NoError(t, err)
-		assert.Equal(t, now.Round(time.Microsecond), *ts)
+		assert.Equal(t, now.Round(time.Microsecond), ts.Round(time.Microsecond))
 		wg.Done()
 	}()
 
