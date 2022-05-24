@@ -19,6 +19,7 @@ type Server struct {
 	useMTLS    bool
 	tlsConfig  *tls.Config
 	listener   net.Listener
+	udpConn    *net.UDPConn
 	waitListen *sync.WaitGroup
 }
 
@@ -61,31 +62,23 @@ func (s *Server) ListenAndServe(address string) error {
 		if err != nil {
 			return err
 		}
-		listener, err := net.ListenUDP("udp", a)
+		s.udpConn, err = net.ListenUDP("udp", a)
 		if err != nil {
 			return err
 		}
+		defer s.udpConn.Close()
+		s.options.Logger.Printf("Listening UDP %s => %s", s.udpConn.LocalAddr(), s.udpConn.RemoteAddr())
 		go func() {
-			defer listener.Close()
 			buf := make([]byte, 1024)
 			for {
-				_, addr, err := listener.ReadFromUDP(buf)
+				n, remoteAddr, err := s.udpConn.ReadFromUDP(buf)
 				if err != nil {
 					s.options.Logger.Printf("UDP read error : %v\n", err)
 					continue
 				}
-				re, err := net.DialUDP("udp", nil, addr)
-				if err != nil {
-					s.options.Logger.Printf("UDP dial error : %v\n", err)
-					continue
-				}
-				_, err = re.Write(buf)
+				_, err = s.udpConn.WriteToUDP(buf[:n], remoteAddr)
 				if err != nil {
 					s.options.Logger.Printf("UDP write error : %v\n", err)
-				}
-				err = re.Close()
-				if err != nil {
-					s.options.Logger.Printf("UDP close error : %v\n", err)
 				}
 				s.options.Logger.Println("UDP Pong")
 			}

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net"
 	"sync"
 	"testing"
@@ -53,4 +54,31 @@ func TestServer(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "p8n9gmxTQVC8/nh2wlKKeQ==", m["ack"])
 	wg.Wait()
+}
+
+func TestUDP(t *testing.T) {
+	server := &Server{
+		useUDP:     true,
+		waitListen: &sync.WaitGroup{},
+		options: &options.FluentOptions{
+			Logger: log.Default(),
+		},
+	}
+	server.waitListen.Add(1)
+
+	go server.ListenAndServe("127.0.0.1:0")
+	server.waitListen.Wait()
+	raddr, err := net.ResolveUDPAddr("udp", server.udpConn.LocalAddr().String())
+	assert.NoError(t, err)
+	localAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
+	client, err := net.DialUDP("udp", localAddr, raddr)
+	assert.NoError(t, err)
+	n, err := client.Write([]byte{1})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, n)
+	buf := make([]byte, 1024)
+	n, _, err = client.ReadFromUDP(buf)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, uint8(1), buf[0])
 }
