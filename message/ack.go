@@ -1,18 +1,20 @@
 package message
 
-func (s *FluentSession) Ack(chunk string) error {
-	err := s.encoder.EncodeMapLen(1)
+import "github.com/athoune/fluent-server/wire"
+
+func Ack(wire *wire.Wire, chunk string) error {
+	err := wire.Encoder.EncodeMapLen(1)
 	if err != nil {
 		return err
 	}
-	err = s.encoder.EncodeString("ack")
+	err = wire.Encoder.EncodeString("ack")
 	if err != nil {
 		return err
 	}
-	err = s.encoder.EncodeString(chunk)
+	err = wire.Encoder.EncodeString(chunk)
 	if err != nil {
 		return err
 	}
-	s.debug("< ACK")
-	return s.Flush()
+	wire.Debug("< ACK")
+	return wire.Flush()
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/athoune/fluent-server/wire"
 	"github.com/vmihailenco/msgpack/v5"
 	"github.com/vmihailenco/msgpack/v5/msgpcode"
 )
@@ -93,8 +94,8 @@ func (p *Ping) ValidatePassword(hashsalt []byte, user func(string) []byte) error
 	return fmt.Errorf("bad password for user : %s", p.username)
 }
 
-func (s *FluentSession) handlePing(l int, _type string) error {
-	s.debug("> PING")
+func (s *FluentSession) HandlePing(wire *wire.Wire, l int, _type string) error {
+	wire.Debug("> PING")
 	if _type != "PING" {
 		return fmt.Errorf("wrong type : %s", _type)
 	}
@@ -102,24 +103,23 @@ func (s *FluentSession) handlePing(l int, _type string) error {
 		return fmt.Errorf("wrong size for a ping : %v (type='%s')", l, _type)
 	}
 
-	ping, err := decodePing(s.decoder)
+	ping, err := decodePing(wire.Decoder)
 	if err != nil {
 		return err
 	}
 
-	err = ping.ValidateSharedKeyHexdigest(string(s.nonce), s.SharedKey)
+	err = ping.ValidateSharedKeyHexdigest(string(s.nonce), s.options.SharedKey)
 	msg := ""
 	if err != nil {
-		s.Logger.Printf("Bad shared key digest : %v\n", err)
+		s.options.Logger.Printf("Bad shared key digest : %v\n", err)
 		msg = err.Error()
-	} else {
-		if len(s.hashSalt) > 0 {
-			err = ping.ValidatePassword(s.hashSalt, s.Users)
-			if err != nil {
-				s.Logger.Printf("Bad password : %v\n", err)
-			}
-			msg = "bad password"
+	} else if len(s.hashSalt) > 0 {
+		err = ping.ValidatePassword(s.hashSalt, s.options.Users)
+		if err != nil {
+			s.options.Logger.Printf("Bad password : %v\n", err)
 		}
+		msg = "bad password"
 	}
-	return s.doPong(string(ping.shared_key_salt), msg)
+
+	return s.doPong(wire, string(ping.shared_key_salt), msg)
 }

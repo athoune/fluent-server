@@ -1,16 +1,12 @@
 package message
 
-import "github.com/vmihailenco/msgpack/v5"
+import (
+	"github.com/athoune/fluent-server/msg"
+	"github.com/vmihailenco/msgpack/v5"
+)
 
-type Option struct {
-	Size       int
-	Chunk      string
-	Compressed string
-	Stuff      map[string]interface{}
-}
-
-func decodeOption(decoder *msgpack.Decoder) (*Option, error) {
-	opt := &Option{
+func DecodeOption(decoder *msgpack.Decoder) (*msg.Option, error) {
+	opt := &msg.Option{
 		Stuff: make(map[string]interface{}),
 	}
 

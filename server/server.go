@@ -9,28 +9,42 @@ import (
 	"sync"
 
 	"github.com/athoune/fluent-server/message"
+	"github.com/athoune/fluent-server/options"
 )
 
+// Server listening fluentd protocol
+type Server struct {
+	options    *options.FluentOptions
+	useUDP     bool
+	useMTLS    bool
+	tlsConfig  *tls.Config
+	listener   net.Listener
+	udpConn    *net.UDPConn
+	waitListen *sync.WaitGroup
+}
+
 // New server, with an handler
-func New(handler message.HandlerFunc) (*Server, error) {
+func New(config *options.FluentOptions) (*Server, error) {
+	if config.Logger == nil {
+		config.Logger = log.Default()
+	}
+	var err error
+	config.Hostname, err = os.Hostname()
+	if err != nil {
+		return nil, err
+	}
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	s := &Server{
-		reader:     message.New(handler),
+		options:    config,
 		waitListen: wg,
-		Logger:     log.Default(),
-	}
-	var err error
-	s.Hostname, err = os.Hostname()
-	if err != nil {
-		return nil, err
 	}
 	return s, nil
 }
 
 // New TLS server, with an handler
-func NewTLS(handler message.HandlerFunc, cfg *tls.Config) (*Server, error) {
-	s, err := New(handler)
+func NewTLS(config *options.FluentOptions, cfg *tls.Config) (*Server, error) {
+	s, err := New(config)
 	if err != nil {
 		return nil, err
 	}
@@ -38,21 +52,6 @@ func NewTLS(handler message.HandlerFunc, cfg *tls.Config) (*Server, error) {
 	s.useMTLS = true
 	s.tlsConfig = cfg
 	return s, nil
-}
-
-// Server listening fluentd protocol
-type Server struct {
-	reader     *message.FluentReader
-	useUDP     bool
-	useMTLS    bool
-	tlsConfig  *tls.Config
-	listener   net.Listener
-	waitListen *sync.WaitGroup
-	SharedKey  string
-	Hostname   string
-	Logger     *log.Logger
-	Users      func(string) []byte
-	Debug      bool
 }
 
 // ListenAndServe an address
@@ -63,33 +62,25 @@ func (s *Server) ListenAndServe(address string) error {
 		if err != nil {
 			return err
 		}
-		listener, err := net.ListenUDP("udp", a)
+		s.udpConn, err = net.ListenUDP("udp", a)
 		if err != nil {
 			return err
 		}
+		defer s.udpConn.Close()
+		s.options.Logger.Printf("Listening UDP %s => %s", s.udpConn.LocalAddr(), s.udpConn.RemoteAddr())
 		go func() {
-			defer listener.Close()
 			buf := make([]byte, 1024)
 			for {
-				_, addr, err := listener.ReadFromUDP(buf)
+				n, remoteAddr, err := s.udpConn.ReadFromUDP(buf)
 				if err != nil {
-					s.Logger.Printf("UDP read error : %v\n", err)
+					s.options.Logger.Printf("UDP read error : %v\n", err)
 					continue
 				}
-				re, err := net.DialUDP("udp", nil, addr)
+				_, err = s.udpConn.WriteToUDP(buf[:n], remoteAddr)
 				if err != nil {
-					s.Logger.Printf("UDP dial error : %v\n", err)
-					continue
+					s.options.Logger.Printf("UDP write error : %v\n", err)
 				}
-				_, err = re.Write(buf)
-				if err != nil {
-					s.Logger.Printf("UDP write error : %v\n", err)
-				}
-				err = re.Close()
-				if err != nil {
-					s.Logger.Printf("UDP close error : %v\n", err)
-				}
-				s.Logger.Println("UDP Pong")
+				s.options.Logger.Println("UDP Pong")
 			}
 		}()
 	}
@@ -110,20 +101,13 @@ func (s *Server) ListenAndServe(address string) error {
 		}
 		log.Println("Connection from ", conn.RemoteAddr())
 		go func() {
-			session := &message.FluentSession{
-				Reader:    s.reader,
-				SharedKey: s.SharedKey,
-				Hostname:  s.Hostname,
-				Logger:    s.Logger,
-				Users:     s.Users,
-				Debug:     s.Debug,
-			}
-			err := session.Loop(conn)
+			session := message.NewSession(s.options, conn)
+			err := session.Loop()
 			if err != nil {
 				if err == io.EOF {
-					s.Logger.Println(conn.RemoteAddr(), "is closed")
+					s.options.Logger.Println(conn.RemoteAddr(), "is closed")
 				} else {
-					s.Logger.Println("Error from", conn.RemoteAddr(), err)
+					s.options.Logger.Println("Error from", conn.RemoteAddr(), err)
 				}
 				return
 			}

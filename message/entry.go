@@ -8,7 +8,7 @@ import (
 	"github.com/vmihailenco/msgpack/v5/msgpcode"
 )
 
-func decodeEntry(decoder *msgpack.Decoder) (*time.Time, map[string]interface{}, error) {
+func DecodeEntry(decoder *msgpack.Decoder) (*time.Time, map[string]interface{}, error) {
 	c, err := decoder.PeekCode()
 	if err != nil {
 		return nil, nil, err
@@ -23,7 +23,7 @@ func decodeEntry(decoder *msgpack.Decoder) (*time.Time, map[string]interface{}, 
 	if l != 2 {
 		return nil, nil, fmt.Errorf("bad array length %v", l)
 	}
-	ts, err := decodeTime(decoder)
+	ts, err := DecodeTime(decoder)
 	if err != nil {
 		return nil, nil, err
 	}

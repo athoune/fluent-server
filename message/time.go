@@ -9,7 +9,7 @@ import (
 	"github.com/vmihailenco/msgpack/v5/msgpcode"
 )
 
-func decodeTime(decoder *msgpack.Decoder) (*time.Time, error) {
+func DecodeTime(decoder *msgpack.Decoder) (*time.Time, error) {
 	t, err := decoder.PeekCode()
 	if err != nil {
 		return nil, err
