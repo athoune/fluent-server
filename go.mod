@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/davecgh/go-spew v1.1.1
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 )
 
