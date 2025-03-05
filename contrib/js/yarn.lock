@@ -3,13 +3,13 @@
 
 
 "@fluent-org/logger@^1.0.7":
-  version "1.0.7"
-  resolved "https://registry.yarnpkg.com/@fluent-org/logger/-/logger-1.0.7.tgz#a6f8962423a892db8cfb8d25a9b503d8f1ab324f"
-  integrity sha512-N7u6MZCuml+SpPJuDJhktgDh+OZ6KsHsDkv9D8WPJkZfUN5iwyvQal7msrxciXYiQiO9LrFNSeYPsz58kVSjzQ==
+  version "1.0.10"
+  resolved "https://registry.yarnpkg.com/@fluent-org/logger/-/logger-1.0.10.tgz#b90a4c8cf6ead0819bf86f47ee4b268d2ee70b88"
+  integrity sha512-7gWfwknDWlcvh92sbUGj1pbGyKwkprfNH2ZuFTgCBQLQmcexvFEYh70z69S/TLnQ6z9sqpgfT/gyHrudBqRtZg==
   dependencies:
     "@msgpack/msgpack" "^2.7.1"
 
 "@msgpack/msgpack@^2.7.1":
-  version "2.7.2"
-  resolved "https://registry.yarnpkg.com/@msgpack/msgpack/-/msgpack-2.7.2.tgz#f34b8aa0c49f0dd55eb7eba577081299cbf3f90b"
-  integrity sha512-rYEi46+gIzufyYUAoHDnRzkWGxajpD9vVXFQ3g1vbjrBm6P7MBmm+s/fqPa46sxa+8FOUdEuRQKaugo5a4JWpw==
+  version "2.8.0"
+  resolved "https://registry.yarnpkg.com/@msgpack/msgpack/-/msgpack-2.8.0.tgz#4210deb771ee3912964f14a15ddfb5ff877e70b9"
+  integrity sha512-h9u4u/jiIRKbq25PM+zymTyW6bhTzELvOoUd+AvYriWOAKpLGnIamaET3pnHYoI5iYphAHBI4ayx0MehR+VVPQ==
