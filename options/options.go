@@ -2,6 +2,7 @@ package options
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/athoune/fluent-server/msg"
 	"github.com/athoune/fluent-server/wire"
@@ -15,6 +16,12 @@ type FluentOptions struct {
 	Logger                *slog.Logger
 	Users                 func(string) []byte
 	Debug                 bool
+	// ReadTimeout is the maximum duration for reading the entire request
+	ReadTimeout time.Duration
+	// WriteTimeout is the maximum duration before timing out writes
+	WriteTimeout time.Duration
+	// IdleTimeout is the maximum amount of time to wait for the next request
+	IdleTimeout time.Duration
 }
 
 type Session struct {

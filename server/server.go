@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/athoune/fluent-server/message"
 	"github.com/athoune/fluent-server/options"
@@ -124,9 +125,18 @@ func (s *Server) ListenAndServe(address string) error {
 		}
 		s.connections.Add(1)
 		s.options.Logger.Info("new connection", "remote", conn.RemoteAddr())
+
+		// Wrap connection with timeout support
+		timeoutConn := &timeoutConnWrapper{
+			Conn:         conn,
+			readTimeout:  s.options.ReadTimeout,
+			writeTimeout: s.options.WriteTimeout,
+			idleTimeout:  s.options.IdleTimeout,
+		}
+
 		go func() {
 			defer s.connections.Done()
-			session := message.NewSession(s.options, conn)
+			session := message.NewSession(s.options, timeoutConn)
 			err := session.Loop()
 			if err != nil {
 				if errors.Is(err, io.EOF) {
@@ -138,6 +148,41 @@ func (s *Server) ListenAndServe(address string) error {
 			}
 		}()
 	}
+}
+
+// timeoutConnWrapper wraps a net.Conn with timeout support
+type timeoutConnWrapper struct {
+	net.Conn
+	readTimeout  time.Duration
+	writeTimeout time.Duration
+	idleTimeout  time.Duration
+	lastActivity time.Time
+}
+
+func (c *timeoutConnWrapper) Read(b []byte) (n int, err error) {
+	if c.readTimeout > 0 {
+		if err := c.Conn.SetReadDeadline(time.Now().Add(c.readTimeout)); err != nil {
+			return 0, err
+		}
+	}
+	n, err = c.Conn.Read(b)
+	if err == nil {
+		c.lastActivity = time.Now()
+	}
+	return n, err
+}
+
+func (c *timeoutConnWrapper) Write(b []byte) (n int, err error) {
+	if c.writeTimeout > 0 {
+		if err := c.Conn.SetWriteDeadline(time.Now().Add(c.writeTimeout)); err != nil {
+			return 0, err
+		}
+	}
+	n, err = c.Conn.Write(b)
+	if err == nil {
+		c.lastActivity = time.Now()
+	}
+	return n, err
 }
 
 // Shutdown gracefully shuts down the server
