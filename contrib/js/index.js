@@ -7,22 +7,27 @@ const logger = new FluentClient("tag_prefix", {
     port: 24224,
     timeout: 1000, // 1 second
   },
-  eventMode: "Forward",
+  eventMode: "PackedForward",
   ack: {},
   security: {
     clientHostname: "client.localdomain",
     sharedKey: "popo"
+  },
+  onSocketError: (err) => {
+    console.error("error!", err);
   }
 });
 
 
 async function demo() {
     const magic = Math.random();
-    await logger.emit("my_tag", {
-      name: "Bob",
-      age: 42,
-      magic: magic,
-    });
+    for (var i = 0; i < 10; i++) {
+      await logger.emit("my_tag", {
+        name: "Bob",
+        age: 42 + i,
+        magic: magic,
+      });
+    }
     http.get("http://127.0.0.1:24280", (res) => {
         res.setEncoding('utf8');
         let rawData = '';
