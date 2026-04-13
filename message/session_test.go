@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"sync"
 	"testing"
@@ -113,7 +113,7 @@ func (d *DummyMessagesReader) ForwardMode(wire *wire.Wire, tag string) error {
 }
 
 func DummyMessagesReaderFactory(wg *sync.WaitGroup, record map[string]interface{}) options.MessagesReaderFactory {
-	return func(log *log.Logger, cfg map[string]interface{}) options.MessagesReader {
+	return func(log *slog.Logger, cfg map[string]interface{}) options.MessagesReader {
 		return &DummyMessagesReader{
 			wg:     wg,
 			record: record,
@@ -125,7 +125,7 @@ func TestSession(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	myRecord := make(map[string]interface{})
 	opt := &options.FluentOptions{
-		Logger:                log.Default(),
+		Logger:                slog.Default(),
 		MessagesReaderFactory: DummyMessagesReaderFactory(wg, myRecord),
 	}
 	ctx, cancel := context.WithCancel(context.TODO())
@@ -164,7 +164,7 @@ func TestSessionSharedKey(t *testing.T) {
 	myRecord := make(map[string]interface{})
 	const shared_key = "beuha"
 	opt := &options.FluentOptions{
-		Logger:                log.Default(),
+		Logger:                slog.Default(),
 		SharedKey:             shared_key,
 		Hostname:              "server.example.com",
 		MessagesReaderFactory: DummyMessagesReaderFactory(wg, myRecord),

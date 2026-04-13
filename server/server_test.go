@@ -1,7 +1,7 @@
 package server
 
 import (
-	"log"
+	"log/slog"
 	"net"
 	"sync"
 	"testing"
@@ -61,7 +61,7 @@ func TestUDP(t *testing.T) {
 		useUDP:     true,
 		waitListen: &sync.WaitGroup{},
 		options: &options.FluentOptions{
-			Logger: log.Default(),
+			Logger: slog.Default(),
 		},
 	}
 	server.waitListen.Add(1)

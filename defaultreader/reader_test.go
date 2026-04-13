@@ -2,7 +2,9 @@ package defaultreader
 
 import (
 	"bytes"
-	"log"
+	"errors"
+	"io"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -29,11 +31,14 @@ func TestReader(t *testing.T) {
 
 	factory := DefaultMessagesReaderFactory(handler)
 
-	reader := factory(log.Default(), nil)
+	reader := factory(slog.Default(), nil)
 
 	go func() {
 		for {
 			code, err := server.Decoder.PeekCode()
+			if errors.Is(err, io.EOF) {
+				return
+			}
 			assert.NoError(t, err)
 			assert.True(t, msgpcode.IsFixedArray(code))
 			l, err := server.Decoder.DecodeArrayLen()
