@@ -15,7 +15,7 @@ import (
 type Step int
 
 const (
-	WatingForHelo Step = iota
+	WaitingForHelo Step = iota
 	WaitingForPing
 	WaitingForPong
 	WaitingForEvents
@@ -48,7 +48,7 @@ func NewSession(opts *options.FluentOptions, conn io.ReadWriteCloser) *FluentSes
 	if s.options.SharedKey == "" {
 		s.step = WaitingForEvents
 	} else {
-		s.step = WatingForHelo
+		s.step = WaitingForHelo
 	}
 	nconn, ok := conn.(net.Conn)
 	if ok {
@@ -77,7 +77,7 @@ func (s *FluentSession) Loop() error {
 }
 
 func (s *FluentSession) handleMessage() error {
-	if s.step == WatingForHelo {
+	if s.step == WaitingForHelo {
 		return s.DoHelo()
 	}
 	code, err := s.Wire.Decoder.PeekCode()
