@@ -25,7 +25,7 @@ func (s *FluentSession) decodeMessages(tag string, l int) error {
 				return err
 			}
 		}
-		s.debug("> message in forward mode")
+		s.debug("message in forward mode")
 
 	case msgpcode.IsString(firstCode): // PackedForward Mode
 		return fmt.Errorf("PackedForward is old")
@@ -42,11 +42,11 @@ func (s *FluentSession) decodeMessages(tag string, l int) error {
 			}
 		}
 		err = s.messagesReader.PackedForwardMode(tag, blob, opt)
-		s.debug("> message in packed forward mode")
+		s.debug("message in packed forward mode")
 
 	case firstCode == msgpcode.Uint32 || firstCode == msgpcode.Int32 || msgpcode.IsExt(firstCode): // Message Mode
 		err = s.messagesReader.MessageMode(s.Wire, tag)
-		s.debug("> message in message mode")
+		s.debug("message in message mode")
 	default:
 		err = fmt.Errorf("bad code %v", firstCode)
 	}

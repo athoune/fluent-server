@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/athoune/fluent-server/message"
@@ -22,12 +22,12 @@ import (
 type HandlerFunc func(tag string, time *time.Time, record map[string]interface{}) error
 
 type DefaultMessagesReader struct {
-	Logger       *log.Logger
+	Logger       *slog.Logger
 	EventHandler HandlerFunc
 }
 
 func DefaultMessagesReaderFactory(eventHandler HandlerFunc) options.MessagesReaderFactory {
-	return func(logger *log.Logger, cfg map[string]interface{}) options.MessagesReader {
+	return func(logger *slog.Logger, cfg map[string]interface{}) options.MessagesReader {
 		return &DefaultMessagesReader{
 			Logger:       logger,
 			EventHandler: eventHandler,
@@ -36,7 +36,7 @@ func DefaultMessagesReaderFactory(eventHandler HandlerFunc) options.MessagesRead
 }
 
 func (r *DefaultMessagesReader) MessageMode(wire *wire.Wire, tag string) error {
-	r.Logger.Println("Message Mode")
+	r.Logger.Debug("Message Mode")
 	ts, err := message.DecodeTime(wire.Decoder)
 	if err != nil {
 		return err
@@ -55,7 +55,7 @@ func (r *DefaultMessagesReader) PackedForwardMode(tag string, entries []byte, op
 		if err != nil {
 			return err
 		}
-		r.Logger.Println("CompressedPackedForward")
+		r.Logger.Debug("CompressedPackedForward")
 		_decoder = msgpack.NewDecoder(rr)
 	} else {
 		_decoder = msgpack.NewDecoder(bytes.NewBuffer(entries))
@@ -77,7 +77,7 @@ func (r *DefaultMessagesReader) PackedForwardMode(tag string, entries []byte, op
 }
 
 func (r *DefaultMessagesReader) ForwardMode(wire *wire.Wire, tag string) error {
-	r.Logger.Println("Forward mode")
+	r.Logger.Debug("Forward mode")
 	size, err := wire.Decoder.DecodeArrayLen()
 	if err != nil {
 		return err

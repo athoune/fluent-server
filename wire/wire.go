@@ -3,7 +3,7 @@ package wire
 import (
 	"bufio"
 	"io"
-	"log"
+	"log/slog"
 
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -30,9 +30,8 @@ func New(conn io.ReadWriteCloser) *Wire {
 		closer:  conn,
 		//s.encoder.UseCompactInts(true)
 		//s.encoder.UseCompactFloats(true)
-		// FIXME : how can I set the logger?
 		Debug: func(m string) {
-			log.Println(m)
+			slog.Debug(m)
 		},
 	}
 }

@@ -3,7 +3,7 @@ package server
 import (
 	"crypto/tls"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"sync"
@@ -26,7 +26,7 @@ type Server struct {
 // New server, with an handler
 func New(config *options.FluentOptions) (*Server, error) {
 	if config.Logger == nil {
-		config.Logger = log.Default()
+		config.Logger = slog.Default()
 	}
 	var err error
 	config.Hostname, err = os.Hostname()
@@ -67,20 +67,20 @@ func (s *Server) ListenAndServe(address string) error {
 			return err
 		}
 		defer s.udpConn.Close()
-		s.options.Logger.Printf("Listening UDP %s => %s", s.udpConn.LocalAddr(), s.udpConn.RemoteAddr())
+		s.options.Logger.Info("listening UDP", "local", s.udpConn.LocalAddr(), "remote", s.udpConn.RemoteAddr())
 		go func() {
 			buf := make([]byte, 1024)
 			for {
 				n, remoteAddr, err := s.udpConn.ReadFromUDP(buf)
 				if err != nil {
-					s.options.Logger.Printf("UDP read error : %v\n", err)
+					s.options.Logger.Error("UDP read error", "error", err)
 					continue
 				}
 				_, err = s.udpConn.WriteToUDP(buf[:n], remoteAddr)
 				if err != nil {
-					s.options.Logger.Printf("UDP write error : %v\n", err)
+					s.options.Logger.Error("UDP write error", "error", err)
 				}
-				s.options.Logger.Println("UDP Pong")
+				s.options.Logger.Debug("UDP Pong")
 			}
 		}()
 	}
@@ -99,15 +99,15 @@ func (s *Server) ListenAndServe(address string) error {
 		if err != nil {
 			return err
 		}
-		log.Println("Connection from ", conn.RemoteAddr())
+		s.options.Logger.Info("new connection", "remote", conn.RemoteAddr())
 		go func() {
 			session := message.NewSession(s.options, conn)
 			err := session.Loop()
 			if err != nil {
 				if err == io.EOF {
-					s.options.Logger.Println(conn.RemoteAddr(), "is closed")
+					s.options.Logger.Info("connection closed", "remote", conn.RemoteAddr())
 				} else {
-					s.options.Logger.Println("Error from", conn.RemoteAddr(), err)
+					s.options.Logger.Error("connection error", "remote", conn.RemoteAddr(), "error", err)
 				}
 				return
 			}

@@ -111,12 +111,12 @@ func (s *FluentSession) HandlePing(wire *wire.Wire, l int, _type string) error {
 	err = ping.ValidateSharedKeyHexdigest(string(s.nonce), s.options.SharedKey)
 	msg := ""
 	if err != nil {
-		s.options.Logger.Printf("Bad shared key digest : %v\n", err)
+		s.options.Logger.Error("bad shared key digest", "error", err)
 		msg = err.Error()
 	} else if len(s.hashSalt) > 0 {
 		err = ping.ValidatePassword(s.hashSalt, s.options.Users)
 		if err != nil {
-			s.options.Logger.Printf("Bad password : %v\n", err)
+			s.options.Logger.Error("bad password", "error", err)
 		}
 		msg = "bad password"
 	}

@@ -2,7 +2,7 @@ package mirror
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -24,7 +24,7 @@ func New() *Mirror {
 }
 
 func (t *Mirror) Handler(tag string, ts *time.Time, record map[string]interface{}) error {
-	log.Println(tag, ts, record)
+	slog.Info("received event", "tag", tag, "timestamp", ts, "record", record)
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	evts, ok := t.events[tag]

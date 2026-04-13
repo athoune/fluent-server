@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 
 	"github.com/athoune/fluent-server/options"
@@ -34,9 +33,9 @@ type FluentSession struct {
 	messagesReader options.MessagesReader
 }
 
-func (s *FluentSession) debug(v ...interface{}) {
+func (s *FluentSession) debug(msg string, args ...any) {
 	if s.options.Debug {
-		log.Println("🐞", fmt.Sprint(v...))
+		s.options.Logger.Debug(msg, args...)
 	}
 }
 
@@ -67,10 +66,10 @@ func (s *FluentSession) Loop() error {
 		err := s.handleMessage()
 		if err != nil {
 			if err == io.EOF {
-				s.options.Logger.Println("Connection closed", s.client)
+				s.options.Logger.Info("connection closed", "client", s.client)
 				return nil
 			}
-			s.options.Logger.Println("Error : ", err, s.client)
+			s.options.Logger.Error("session error", "error", err, "client", s.client)
 			return s.Wire.Close()
 		}
 	}
@@ -101,7 +100,7 @@ func (s *FluentSession) handleMessage() error {
 	if err != nil {
 		return err
 	}
-	s.options.Logger.Printf("Type : [%s]\n", _type)
+	s.options.Logger.Debug("message type", "type", _type)
 	switch s.step {
 	case WaitingForPing:
 		if _type != "PING" {
@@ -126,7 +125,7 @@ func (s *FluentSession) HandleHearthBeat() error {
 	if err != nil {
 		return err
 	}
-	s.options.Logger.Println("Hearthbeat")
+	s.options.Logger.Debug("heartbeat received")
 	/*
 		err = s.encoder.EncodeNil()
 		if err != nil {
