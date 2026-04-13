@@ -2,13 +2,14 @@ package message
 
 import (
 	"crypto/rand"
+	"fmt"
 )
 
 func random(size int) ([]byte, error) {
 	b := make([]byte, size)
 	_, err := rand.Read(b)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate random bytes: %w", err)
 	}
 	return b, nil
 }
@@ -17,14 +18,14 @@ func (s *FluentSession) DoHelo() error {
 	var err error
 	s.nonce, err = random(16)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to generate nonce: %w", err)
 	}
 	if s.PasswordForKey == nil {
 		s.hashSalt = []byte{}
 	} else {
 		s.hashSalt, err = random(16)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to generate hash salt: %w", err)
 		}
 	}
 	s.debug("< HELO")

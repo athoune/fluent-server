@@ -24,38 +24,38 @@ func decodePing(decoder *msgpack.Decoder) (*Ping, error) {
 	var err error
 	p.client_hostname, err = decoder.DecodeString()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode client hostname: %w", err)
 	}
 	code, err := decoder.PeekCode()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to peek ping code: %w", err)
 	}
 	switch {
 	case msgpcode.IsString(code):
 		sks, err := decoder.DecodeString()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to decode shared key salt string: %w", err)
 		}
 		p.shared_key_salt = []byte(sks)
 	case msgpcode.IsBin(code):
 		p.shared_key_salt, err = decoder.DecodeBytes()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to decode shared key salt bytes: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("shared_key_salt has an unknown type : %v", code)
 	}
 	p.shared_key_hexdigest, err = decoder.DecodeString()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode shared key hexdigest: %w", err)
 	}
 	p.username, err = decoder.DecodeString()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode username: %w", err)
 	}
 	p.password, err = decoder.DecodeString()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode password: %w", err)
 	}
 	return p, nil
 }
@@ -105,7 +105,7 @@ func (s *FluentSession) HandlePing(wire *wire.Wire, l int, _type string) error {
 
 	ping, err := decodePing(wire.Decoder)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decode ping: %w", err)
 	}
 
 	err = ping.ValidateSharedKeyHexdigest(string(s.nonce), s.options.SharedKey)

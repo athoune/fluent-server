@@ -1,6 +1,8 @@
 package message
 
 import (
+	"fmt"
+
 	"github.com/athoune/fluent-server/msg"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -12,12 +14,12 @@ func DecodeOption(decoder *msgpack.Decoder) (*msg.Option, error) {
 
 	option_l, err := decoder.DecodeMapLen()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode option map length: %w", err)
 	}
 	for i := 0; i < option_l; i++ {
 		key, err := decoder.DecodeString()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to decode option key: %w", err)
 		}
 		switch key {
 		case "chunk":
@@ -30,7 +32,7 @@ func DecodeOption(decoder *msgpack.Decoder) (*msg.Option, error) {
 			opt.Stuff[key], err = decoder.DecodeInterface()
 		}
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to decode option value for key %q: %w", key, err)
 		}
 	}
 	return opt, nil

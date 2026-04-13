@@ -81,7 +81,7 @@ func (s *FluentSession) handleMessage() error {
 	}
 	code, err := s.Wire.Decoder.PeekCode()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to peek message code: %w", err)
 	}
 	if code == msgpcode.Nil {
 		return s.HandleHearthBeat()
@@ -91,14 +91,14 @@ func (s *FluentSession) handleMessage() error {
 	}
 	l, err := s.Wire.Decoder.DecodeArrayLen()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decode message array length: %w", err)
 	}
 	if l == 0 {
 		return errors.New("empty array")
 	}
 	_type, err := s.Wire.Decoder.DecodeString()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decode message type: %w", err)
 	}
 	s.options.Logger.Debug("message type", "type", _type)
 	switch s.step {
@@ -108,7 +108,7 @@ func (s *FluentSession) handleMessage() error {
 		}
 		err = s.HandlePing(s.Wire, l, _type)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to handle ping: %w", err)
 		}
 		s.step = WaitingForEvents
 	case WaitingForEvents:
@@ -123,7 +123,7 @@ func (s *FluentSession) handleMessage() error {
 func (s *FluentSession) HandleHearthBeat() error {
 	err := s.Wire.Decoder.DecodeNil()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decode heartbeat nil: %w", err)
 	}
 	s.options.Logger.Debug("heartbeat received")
 	/*

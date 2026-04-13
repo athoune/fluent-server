@@ -12,26 +12,26 @@ import (
 func DecodeTime(decoder *msgpack.Decoder) (*time.Time, error) {
 	t, err := decoder.PeekCode()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to peek time code: %w", err)
 	}
 	var ts time.Time
 	switch {
 	case t == msgpcode.Uint32:
 		tRaw, err := decoder.DecodeUint32()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to decode uint32 timestamp: %w", err)
 		}
 		ts = time.Unix(int64(tRaw), 0)
 	case t == msgpcode.Int32:
 		tRaw, err := decoder.DecodeInt32()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to decode int32 timestamp: %w", err)
 		}
 		ts = time.Unix(int64(tRaw), 0)
 	case msgpcode.IsExt(t):
 		id, len, err := decoder.DecodeExtHeader()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to decode ext header: %w", err)
 		}
 		if id != 0 {
 			return nil, fmt.Errorf("unknown ext id %v", id)
@@ -42,7 +42,7 @@ func DecodeTime(decoder *msgpack.Decoder) (*time.Time, error) {
 		b := make([]byte, len)
 		l, err := decoder.Buffered().Read(b)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to read ext data: %w", err)
 		}
 		if l != len {
 			return nil, fmt.Errorf("read error, wrong size %v", l)

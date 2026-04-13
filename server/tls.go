@@ -3,17 +3,18 @@ package server
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io/ioutil"
 )
 
 func ConfigTLS(caCrt, srvCrt, srvKey string) (*tls.Config, error) {
 	certificate, err := tls.LoadX509KeyPair(srvCrt, srvKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load X509 key pair: %w", err)
 	}
 	caCertFile, err := ioutil.ReadFile(caCrt)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read CA certificate file: %w", err)
 	}
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCertFile)
