@@ -65,7 +65,7 @@ func (s *FluentSession) Loop() error {
 	for {
 		err := s.handleMessage()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				s.options.Logger.Info("connection closed", "client", s.client)
 				return nil
 			}

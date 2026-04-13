@@ -7,6 +7,7 @@ Implement a default reader, using unmarshaled values, from mesgpack
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"io"
 	"log/slog"
 	"time"
@@ -63,7 +64,7 @@ func (r *DefaultMessagesReader) PackedForwardMode(tag string, entries []byte, op
 	for {
 		ts, record, err := message.DecodeEntry(_decoder)
 		if err != nil {
-			if err == io.EOF { // the PackedForward is ended, it's ok.
+			if errors.Is(err, io.EOF) { // the PackedForward is ended, it's ok.
 				return nil
 			}
 			return err

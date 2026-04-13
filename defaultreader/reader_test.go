@@ -23,6 +23,7 @@ func TestReader(t *testing.T) {
 	defer server.Close()
 
 	wg := &sync.WaitGroup{}
+	done := make(chan struct{})
 
 	handler := func(tag string, time *time.Time, record map[string]interface{}) error {
 		wg.Done()
@@ -34,32 +35,61 @@ func TestReader(t *testing.T) {
 	reader := factory(slog.Default(), nil)
 
 	go func() {
+		defer close(done)
 		for {
 			code, err := server.Decoder.PeekCode()
 			if errors.Is(err, io.EOF) {
 				return
 			}
-			assert.NoError(t, err)
-			assert.True(t, msgpcode.IsFixedArray(code))
+			if err != nil {
+				t.Errorf("peek code error: %v", err)
+				return
+			}
+			if !msgpcode.IsFixedArray(code) {
+				t.Errorf("expected fixed array, got %v", code)
+				return
+			}
 			l, err := server.Decoder.DecodeArrayLen()
-			assert.NoError(t, err)
+			if err != nil {
+				t.Errorf("decode array length error: %v", err)
+				return
+			}
 			firstCode, err := server.Decoder.PeekCode()
-			assert.NoError(t, err)
+			if err != nil {
+				t.Errorf("peek first code error: %v", err)
+				return
+			}
 			switch {
 			case firstCode == msgpcode.Uint32 || firstCode == msgpcode.Int32 || msgpcode.IsExt(firstCode): // Message Mode
-				assert.Equal(t, 2, l)
+				if l != 2 {
+					t.Errorf("expected array length 2, got %d", l)
+					return
+				}
 				err = reader.MessageMode(server, "myTag")
-				assert.NoError(t, err)
+				if err != nil {
+					t.Errorf("message mode error: %v", err)
+					return
+				}
 			case msgpcode.IsFixedArray(firstCode): // Forward mode
 				err = reader.ForwardMode(server, "myTag")
-				assert.NoError(t, err)
+				if err != nil {
+					t.Errorf("forward mode error: %v", err)
+					return
+				}
 			case msgpcode.IsBin(firstCode): // PackedForward Mode
 				blob, err := server.Decoder.DecodeBytes()
-				assert.NoError(t, err)
+				if err != nil {
+					t.Errorf("decode bytes error: %v", err)
+					return
+				}
 				err = reader.PackedForwardMode("myTag", blob, &msg.Option{})
-				assert.NoError(t, err)
+				if err != nil {
+					t.Errorf("packed forward mode error: %v", err)
+					return
+				}
 			default:
-				assert.True(t, false)
+				t.Errorf("unexpected code: %v", firstCode)
+				return
 			}
 		}
 	}()
@@ -108,4 +138,7 @@ func TestReader(t *testing.T) {
 	assert.NoError(t, err)
 	wg.Wait()
 
+	// Close client to trigger EOF in the goroutine and wait for it to finish
+	client.Close()
+	<-done
 }
