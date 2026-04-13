@@ -1,7 +1,6 @@
 package server
 
 import (
-	"log/slog"
 	"net"
 	"sync"
 	"testing"
@@ -57,14 +56,10 @@ func TestServer(t *testing.T) {
 }
 
 func TestUDP(t *testing.T) {
-	server := &Server{
-		useUDP:     true,
-		waitListen: &sync.WaitGroup{},
-		options: &options.FluentOptions{
-			Logger: slog.Default(),
-		},
-	}
-	server.waitListen.Add(1)
+	config := &options.FluentOptions{}
+	server, err := New(config)
+	assert.NoError(t, err)
+	server.useUDP = true
 
 	go server.ListenAndServe("127.0.0.1:0")
 	server.waitListen.Wait()

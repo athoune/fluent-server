@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"crypto/tls"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
@@ -14,13 +16,18 @@ import (
 
 // Server listening fluentd protocol
 type Server struct {
-	options    *options.FluentOptions
-	useUDP     bool
-	useMTLS    bool
-	tlsConfig  *tls.Config
-	listener   net.Listener
-	udpConn    *net.UDPConn
-	waitListen *sync.WaitGroup
+	options     *options.FluentOptions
+	useUDP      bool
+	useMTLS     bool
+	tlsConfig   *tls.Config
+	listener    net.Listener
+	udpConn     *net.UDPConn
+	waitListen  *sync.WaitGroup
+	ctx         context.Context
+	cancel      context.CancelFunc
+	connections sync.WaitGroup
+	mu          sync.Mutex
+	closed      bool
 }
 
 // New server, with an handler
@@ -35,9 +42,12 @@ func New(config *options.FluentOptions) (*Server, error) {
 	}
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
+	ctx, cancel := context.WithCancel(context.Background())
 	s := &Server{
 		options:    config,
 		waitListen: wg,
+		ctx:        ctx,
+		cancel:     cancel,
 	}
 	return s, nil
 }
@@ -71,6 +81,11 @@ func (s *Server) ListenAndServe(address string) error {
 		go func() {
 			buf := make([]byte, 1024)
 			for {
+				select {
+				case <-s.ctx.Done():
+					return
+				default:
+				}
 				n, remoteAddr, err := s.udpConn.ReadFromUDP(buf)
 				if err != nil {
 					s.options.Logger.Error("UDP read error", "error", err)
@@ -95,16 +110,26 @@ func (s *Server) ListenAndServe(address string) error {
 	}
 	s.waitListen.Done()
 	for {
+		select {
+		case <-s.ctx.Done():
+			return nil
+		default:
+		}
 		conn, err := s.listener.Accept()
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				return nil
+			}
 			return err
 		}
+		s.connections.Add(1)
 		s.options.Logger.Info("new connection", "remote", conn.RemoteAddr())
 		go func() {
+			defer s.connections.Done()
 			session := message.NewSession(s.options, conn)
 			err := session.Loop()
 			if err != nil {
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					s.options.Logger.Info("connection closed", "remote", conn.RemoteAddr())
 				} else {
 					s.options.Logger.Error("connection error", "remote", conn.RemoteAddr(), "error", err)
@@ -113,4 +138,32 @@ func (s *Server) ListenAndServe(address string) error {
 			}
 		}()
 	}
+}
+
+// Shutdown gracefully shuts down the server
+func (s *Server) Shutdown() error {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil
+	}
+	s.closed = true
+	s.mu.Unlock()
+
+	s.options.Logger.Info("shutting down server")
+	s.cancel()
+
+	if s.listener != nil {
+		if err := s.listener.Close(); err != nil {
+			return err
+		}
+	}
+
+	if s.udpConn != nil {
+		s.udpConn.Close()
+	}
+
+	s.connections.Wait()
+	s.options.Logger.Info("server shutdown complete")
+	return nil
 }
