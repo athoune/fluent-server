@@ -1,7 +1,7 @@
 Fluent Server
 =============
 
-[![Build Status](https://drone.garambrogne.net/api/badges/athoune/fluent-server/status.svg)](https://drone.garambrogne.net/athoune/fluent-server)
+[![Tests](https://github.com/athoune/fluent-server/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/athoune/fluent-server/actions/workflows/test.yml)
 
 Listen events coming from fluent-bit or any fluentd hoses.
 
