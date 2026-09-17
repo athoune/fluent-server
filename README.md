@@ -31,6 +31,12 @@ through its HTTP mirror:
 
     make functional-test
 
+The target passes `-count=1`: those tests are not hermetic — they build
+images, start containers and read `functional/testdata` — so Go's test cache
+must not replay a previous result. When running them straight from your
+editor instead, the harness reads the testdata files so that editing one
+invalidates the cache.
+
 Four clients are covered:
 
  * Fluent Bit, from the `fluent/fluent-bit:5.1.2` image;

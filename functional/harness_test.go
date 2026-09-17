@@ -159,6 +159,7 @@ func randomSuffix(t *testing.T) string {
 // only the first build of a run does real work.
 func officialClientImage(t *testing.T, name string) string {
 	t.Helper()
+	registerTestdata(t)
 	tag := "fluent-server-test/" + name + ":local"
 	cmd := exec.Command("docker", "build", "-q",
 		"-t", tag,
@@ -169,6 +170,26 @@ func officialClientImage(t *testing.T, name string) string {
 		t.Fatalf("docker build %s: %v\n%s", name, err, out)
 	}
 	return tag
+}
+
+// registerTestdata reads every file of functional/testdata. Go's test cache
+// only tracks the files the test binary itself opens, and docker build reads
+// the Dockerfiles and client scripts outside of it. Reading them here makes
+// any change to those files invalidate the cached test result.
+func registerTestdata(t *testing.T) {
+	t.Helper()
+	entries, err := os.ReadDir("testdata")
+	if err != nil {
+		t.Fatalf("read testdata: %v", err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if _, err := os.ReadFile(filepath.Join("testdata", entry.Name())); err != nil {
+			t.Fatalf("read testdata/%s: %v", entry.Name(), err)
+		}
+	}
 }
 
 // runOfficialClient runs an official Fluent client container against the
