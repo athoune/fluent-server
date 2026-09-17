@@ -53,30 +53,41 @@
 // Affected: TestForwardCompressed — decompression succeeds, then the entry
 // framing error from bug 1 is dropped on the floor.
 //
-// 3. Message mode leaves the options map unread.
+// 3. Message mode leaves the optional fourth element unread.
 //
-// Fluent Bit enters Message mode when the output Tag is dynamic, e.g.
+// Two clients reach Message mode:
 //
-//	Tag app.$message
+//   - Fluent Bit, when the output Tag is dynamic, e.g.
 //
-// (flb_forward_format_message_mode in plugins/out_forward/forward_format.c).
-// Each entry is packed as a 4-element array, and append_options() ALWAYS
-// appends an options map — at minimum {"fluent_signal": 0}, plus "chunk"
-// when Require_ack_response is enabled:
+//     Tag app.$message
+//
+//     (flb_forward_format_message_mode in out_forward/forward_format.c).
+//     The record accessor is $message, not ${message}: Fluent Bit expands
+//     ${...} in configuration files as environment variables, so ${message}
+//     silently becomes an empty string and the output falls back to Forward
+//     mode.
+//
+//   - the official Node.js logger (@fluent-org/logger) with eventMode
+//     "Message".
+//
+// Both pack each entry as a 4-element array and append an options map even
+// when there is nothing to put in it — Fluent Bit at least
+// {"fluent_signal": 0}, plus "chunk" when Require_ack_response is enabled,
+// Node.js an empty map:
 //
 //	[tag, timestamp, record, options]
-//
-// Note: the record accessor is $message, not ${message} — Fluent Bit expands
-// ${...} in configuration files as environment variables, so `${message}`
-// silently becomes an empty string and the output falls back to Forward mode.
 //
 // message.MessageMode() (defaultreader/reader.go) reads only
 // tag/timestamp/record and leaves that map in the stream. The next
 // FluentSession.handleMessage() then PeekCode()s a map where it requires a
 // fixed array and aborts with "unexpected code". With Require_ack_response
 // the server also never sends the ACK Fluent Bit waits for, so Fluent Bit
-// retries the chunk. Affected: TestMessageModeDynamicTag,
-// TestMessageModeAck. These two assert on the server-side slog records: no
+// retries the chunk.
+//
+// The Python and Ruby official loggers also use Message mode, but they emit
+// the historical 3-element form [tag, timestamp, record] and work fine.
+// Affected: TestMessageModeDynamicTag, TestMessageModeAck,
+// TestJavascriptMessage. These assert on the server-side slog records: no
 // Error-level "session error" may be logged.
 //
 // Fix directions:
@@ -154,9 +165,7 @@ func TestForwardAck(t *testing.T) {
 
 	// A malformed ACK makes Fluent Bit retry the chunk and duplicate the
 	// event; settling must keep the count at one.
-	time.Sleep(2 * time.Second)
-	assert.Len(t, fetchEvents(t, h)[tagSingle], 1,
-		"a missing or malformed ACK makes Fluent Bit retry the chunk")
+	assertNoDuplicateEvents(t, h, tagSingle)
 }
 
 // TestForwardCompressed covers Compress gzip, which switches Fluent Bit from

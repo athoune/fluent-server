@@ -154,6 +154,55 @@ func randomSuffix(t *testing.T) string {
 	return hex.EncodeToString(b)
 }
 
+// officialClientImage builds, and returns the tag of, an official Fluent
+// client image defined in functional/testdata. Docker caches the layers, so
+// only the first build of a run does real work.
+func officialClientImage(t *testing.T, name string) string {
+	t.Helper()
+	tag := "fluent-server-test/" + name + ":local"
+	cmd := exec.Command("docker", "build", "-q",
+		"-t", tag,
+		"-f", filepath.Join("testdata", name+".Dockerfile"),
+		"testdata",
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("docker build %s: %v\n%s", name, err, out)
+	}
+	return tag
+}
+
+// runOfficialClient runs an official Fluent client container against the
+// server under test, and fails the test if the client exits non-zero. The
+// container reaches the host through host.docker.internal, so the server must
+// listen on all interfaces.
+func runOfficialClient(t *testing.T, image string, env map[string]string) {
+	t.Helper()
+	args := []string{"run", "--rm", "--add-host", hostFromContainer + ":host-gateway"}
+	for key, value := range env {
+		args = append(args, "-e", key+"="+value)
+	}
+	args = append(args, image)
+	if out, err := exec.Command("docker", args...).CombinedOutput(); err != nil {
+		t.Fatalf("client %s failed: %v\n%s", image, err, out)
+	}
+}
+
+// clientEnv assembles the environment shared by every official client.
+func clientEnv(h *serverHandle, tag string) map[string]string {
+	return map[string]string{
+		"FLUENT_HOST": hostFromContainer,
+		"FLUENT_PORT": strconv.Itoa(h.forwardPort),
+		"FLUENT_TAG":  tag,
+	}
+}
+
+// assertOfficialRecord checks the record emitted by the testdata clients.
+func assertOfficialRecord(t *testing.T, e event.Event, client string) {
+	t.Helper()
+	assert.Equal(t, client, e.Record["client"])
+	assert.Equal(t, float64(42), e.Record["value"])
+}
+
 // buildConf renders a minimal Fluent Bit configuration: one dummy input that
 // emits a deterministic record, and one forward output pointing at the host.
 func buildConf(inputTag, dummy string, samples, port int, outputOptions []string) string {
@@ -340,6 +389,15 @@ func assertNoEvents(t *testing.T, h *serverHandle, tag string, window time.Durat
 	time.Sleep(window)
 	all := fetchEvents(t, h)
 	assert.Empty(t, all[tag], "expected no event tagged %q", tag)
+}
+
+// assertNoDuplicateEvents lets the connection settle, then checks that the
+// event was not retried. A retry means the acknowledgement was missing or
+// malformed.
+func assertNoDuplicateEvents(t *testing.T, h *serverHandle, tag string) {
+	t.Helper()
+	time.Sleep(2 * time.Second)
+	assert.Len(t, fetchEvents(t, h)[tag], 1, "a missing or malformed ACK makes the client retry")
 }
 
 func tagList(all map[string]event.Events) []string {
