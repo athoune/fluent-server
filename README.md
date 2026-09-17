@@ -26,13 +26,22 @@ Functional tests
 ----------------
 
 `make test` runs the unit tests only. The tests in `functional/` drive the
-server with a real Fluent Bit client running in a container, and assert what
-the server received through its HTTP mirror:
+server with the official Fluent clients and assert what the server received
+through its HTTP mirror:
 
     make functional-test
 
-They need a Docker daemon and pull `fluent/fluent-bit:5.1.2`; without Docker
-they are skipped.
+Four clients are covered:
+
+ * Fluent Bit, from the `fluent/fluent-bit:5.1.2` image;
+ * the official Python logger, `fluent-logger`;
+ * the official Node.js logger, `@fluent-org/logger`;
+ * the official Ruby logger, `fluent-logger`.
+
+The three loggers are baked into small images built from
+`functional/testdata/`. Docker caches the layers, so only the first run of a
+session builds them. Everything needs a Docker daemon; without one the tests
+are skipped.
 
 By default the harness starts the server in-process, on ephemeral ports: a
 single `go test` is enough, and breakpoints in `server/`, `message/` and
@@ -53,4 +62,4 @@ skipped.
 
 Some functional tests fail on known implementation bugs and are skipped by
 default; `make functional-test-known-bugs` runs them (they will fail). See the
-header of `functional/forward_test.go` for the list and the root causes.
+header of `functional/fluentbit_test.go` for the list and the root causes.
