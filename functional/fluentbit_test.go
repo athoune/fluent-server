@@ -29,15 +29,15 @@
 // message.DecodeEntry (message/entry.go) expects the legacy
 // [timestamp, record] layout, so DecodeTime sees the inner array and fails
 // with "unknown type 146" (0x92 is fixarray of length 2). Every event is
-// lost. Affected: TestForwardPlain, TestForwardAck, TestMultipleEvents,
-// TestSharedKey, TestMTLS, TestForwardCompressed.
+// lost. Affected: TestFluentBitForwardPlain, TestFluentBitForwardAck, TestFluentBitMultipleEvents,
+// TestFluentBitSharedKey, TestFluentBitMTLS, TestFluentBitForwardCompressed.
 //
 // Note: Fluent Bit 2.x/3.x emit a flat [timestamp, record] entry but encode
 // it as array32 (0xdd). DecodeEntry only accepts a *fixed* array
 // (msgpcode.IsFixedArray), so those versions are rejected as well.
 //
 // Fluent Bit's Time_as_Integer True compat mode still emits a flat
-// [uint32, record] fixed array, which is why TestForwardTimeAsInteger
+// [uint32, record] fixed array, which is why TestFluentBitTimeAsInteger
 // passes and exercises the whole chain (TCP, forward mode, event decoding).
 //
 // 2. PackedForward errors are silently swallowed.
@@ -50,12 +50,13 @@
 // function-scoped one, so the trailing `return err` returns nil even when
 // PackedForwardMode() failed. The session stays open with the event lost
 // and, once the client disconnects, only logs "connection closed".
-// Affected: TestForwardCompressed — decompression succeeds, then the entry
+// Affected: TestFluentBitForwardCompressed — decompression succeeds, then the entry
 // framing error from bug 1 is dropped on the floor.
 //
 // 3. Message mode leaves the optional fourth element unread.
 //
-// Two clients reach Message mode:
+// Three clients reach Message mode and append an options map as the fourth
+// element of the packet:
 //
 //   - Fluent Bit, when the output Tag is dynamic, e.g.
 //
@@ -65,30 +66,32 @@
 //     The record accessor is $message, not ${message}: Fluent Bit expands
 //     ${...} in configuration files as environment variables, so ${message}
 //     silently becomes an empty string and the output falls back to Forward
-//     mode.
+//     mode. The map holds at least {"fluent_signal": 0}, plus "chunk" when
+//     Require_ack_response is enabled.
 //
 //   - the official Node.js logger (@fluent-org/logger) with eventMode
-//     "Message".
+//     "Message": an empty map.
 //
-// Both pack each entry as a 4-element array and append an options map even
-// when there is nothing to put in it — Fluent Bit at least
-// {"fluent_signal": 0}, plus "chunk" when Require_ack_response is enabled,
-// Node.js an empty map:
+//   - the official Go logger (fluent-logger-golang) with RequestAck: a map
+//     holding "chunk".
+//
+// The packet is therefore:
 //
 //	[tag, timestamp, record, options]
 //
 // message.MessageMode() (defaultreader/reader.go) reads only
 // tag/timestamp/record and leaves that map in the stream. The next
 // FluentSession.handleMessage() then PeekCode()s a map where it requires a
-// fixed array and aborts with "unexpected code". With Require_ack_response
-// the server also never sends the ACK Fluent Bit waits for, so Fluent Bit
-// retries the chunk.
+// fixed array and aborts with "unexpected code" (0x80 for an empty map, 0x81
+// for a chunk). When an acknowledgement is expected the server also never
+// sends the ACK, so the client retries.
 //
 // The Python and Ruby official loggers also use Message mode, but they emit
-// the historical 3-element form [tag, timestamp, record] and work fine.
-// Affected: TestMessageModeDynamicTag, TestMessageModeAck,
-// TestJavascriptMessage. These assert on the server-side slog records: no
-// Error-level "session error" may be logged.
+// the historical 3-element form [tag, timestamp, record] and work fine, as
+// does the Go logger without RequestAck.
+// Affected: TestFluentBitMessageModeDynamicTag, TestFluentBitMessageModeAck,
+// TestJavascriptMessage, TestGoClientRequestAck. These assert on the
+// server-side slog records: no Error-level "session error" may be logged.
 //
 // Fix directions:
 //   - message/entry.go: accept both [timestamp, record] and
@@ -136,9 +139,9 @@ func assertHelloRecord(t *testing.T, e event.Event) {
 	assert.False(t, e.Ts.IsZero(), "timestamp must be decoded")
 }
 
-// TestForwardPlain covers the default Fluent Bit forward output: a 2-element
+// TestFluentBitForwardPlain covers the default Fluent Bit forward output: a 2-element
 // array [tag, entries] with no options.
-func TestForwardPlain(t *testing.T) {
+func TestFluentBitForwardPlain(t *testing.T) {
 	skipKnownBug(t, "metadata-aware entry framing is not decoded (bug 1)")
 	requireDocker(t)
 	h := startServer(t, serverConfig{})
@@ -149,9 +152,9 @@ func TestForwardPlain(t *testing.T) {
 	assertHelloRecord(t, events[0])
 }
 
-// TestForwardAck covers Require_ack_response: Fluent Bit appends an options
+// TestFluentBitForwardAck covers Require_ack_response: Fluent Bit appends an options
 // map carrying a "chunk" and waits for the matching ACK.
-func TestForwardAck(t *testing.T) {
+func TestFluentBitForwardAck(t *testing.T) {
 	skipKnownBug(t, "metadata-aware entry framing is not decoded (bug 1)")
 	requireDocker(t)
 	h := startServer(t, serverConfig{})
@@ -168,9 +171,9 @@ func TestForwardAck(t *testing.T) {
 	assertNoDuplicateEvents(t, h, tagSingle)
 }
 
-// TestForwardCompressed covers Compress gzip, which switches Fluent Bit from
+// TestFluentBitForwardCompressed covers Compress gzip, which switches Fluent Bit from
 // Forward mode to CompressedPackedForward.
-func TestForwardCompressed(t *testing.T) {
+func TestFluentBitForwardCompressed(t *testing.T) {
 	skipKnownBug(t, "entry framing (bug 1), and the decode error is swallowed by a shadowed err (bug 2)")
 	requireDocker(t)
 	h := startServer(t, serverConfig{})
@@ -182,11 +185,11 @@ func TestForwardCompressed(t *testing.T) {
 	assertHelloRecord(t, events[0])
 }
 
-// TestForwardTimeAsInteger covers Time_as_Integer True (compat mode for
+// TestFluentBitTimeAsInteger covers Time_as_Integer True (compat mode for
 // Fluentd <= 0.12). This is the only forward mode Fluent Bit still encodes in
 // the legacy [timestamp, record] layout, so it passes and validates the
 // harness end to end.
-func TestForwardTimeAsInteger(t *testing.T) {
+func TestFluentBitTimeAsInteger(t *testing.T) {
 	requireDocker(t)
 	h := startServer(t, serverConfig{})
 
@@ -198,8 +201,8 @@ func TestForwardTimeAsInteger(t *testing.T) {
 	assert.Zero(t, events[0].Ts.Nanosecond(), "Time_as_Integer encodes whole seconds")
 }
 
-// TestMultipleEvents checks that a batch of records is fully decoded.
-func TestMultipleEvents(t *testing.T) {
+// TestFluentBitMultipleEvents checks that a batch of records is fully decoded.
+func TestFluentBitMultipleEvents(t *testing.T) {
 	const samples = 5
 	skipKnownBug(t, "metadata-aware entry framing is not decoded (bug 1)")
 	requireDocker(t)
@@ -214,9 +217,9 @@ func TestMultipleEvents(t *testing.T) {
 	}
 }
 
-// TestSharedKey covers the secure forward handshake: HELO/PING/PONG, with
+// TestFluentBitSharedKey covers the secure forward handshake: HELO/PING/PONG, with
 // mutual authentication of the shared key digest.
-func TestSharedKey(t *testing.T) {
+func TestFluentBitSharedKey(t *testing.T) {
 	skipKnownBug(t, "metadata-aware entry framing is not decoded (bug 1)")
 	requireDocker(t)
 	h := startServer(t, serverConfig{sharedKey: sharedKey})
@@ -232,9 +235,9 @@ func TestSharedKey(t *testing.T) {
 	assertHelloRecord(t, events[0])
 }
 
-// TestSharedKeyMismatch verifies authentication is actually enforced: a
+// TestFluentBitSharedKeyMismatch verifies authentication is actually enforced: a
 // client with the wrong key must not get a single event through.
-func TestSharedKeyMismatch(t *testing.T) {
+func TestFluentBitSharedKeyMismatch(t *testing.T) {
 	requireDocker(t)
 	h := startServer(t, serverConfig{sharedKey: sharedKey})
 	requireInProcess(t, h)
@@ -248,9 +251,9 @@ func TestSharedKeyMismatch(t *testing.T) {
 	assertNoEvents(t, h, tagSingle, 8*time.Second)
 }
 
-// TestMTLS covers mutual TLS: the server requires and verifies a client
+// TestFluentBitMTLS covers mutual TLS: the server requires and verifies a client
 // certificate, Fluent Bit verifies the server certificate.
-func TestMTLS(t *testing.T) {
+func TestFluentBitMTLS(t *testing.T) {
 	skipKnownBug(t, "metadata-aware entry framing is not decoded (bug 1)")
 	requireDocker(t)
 	certs := generateCerts(t)
@@ -270,9 +273,9 @@ func TestMTLS(t *testing.T) {
 	assertHelloRecord(t, events[0])
 }
 
-// TestMessageModeDynamicTag covers Message mode, reached by using a dynamic
+// TestFluentBitMessageModeDynamicTag covers Message mode, reached by using a dynamic
 // output tag. FAILS — see the file header comment (bug 3).
-func TestMessageModeDynamicTag(t *testing.T) {
+func TestFluentBitMessageModeDynamicTag(t *testing.T) {
 	skipKnownBug(t, "message mode leaves the options map unread (bug 3)")
 	requireDocker(t)
 	h := startServer(t, serverConfig{})
@@ -287,9 +290,9 @@ func TestMessageModeDynamicTag(t *testing.T) {
 	assertNoSessionErrors(t, h)
 }
 
-// TestMessageModeAck covers Message mode with Require_ack_response. FAILS —
+// TestFluentBitMessageModeAck covers Message mode with Require_ack_response. FAILS —
 // see the file header comment (bug 3).
-func TestMessageModeAck(t *testing.T) {
+func TestFluentBitMessageModeAck(t *testing.T) {
 	skipKnownBug(t, "message mode leaves the options map unread and is never ACKed (bug 3)")
 	requireDocker(t)
 	h := startServer(t, serverConfig{})

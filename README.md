@@ -37,17 +37,26 @@ must not replay a previous result. When running them straight from your
 editor instead, the harness reads the testdata files so that editing one
 invalidates the cache.
 
-Four clients are covered:
+Six clients are covered:
 
  * Fluent Bit, from the `fluent/fluent-bit:5.1.2` image;
  * the official Python logger, `fluent-logger`;
  * the official Node.js logger, `@fluent-org/logger`;
- * the official Ruby logger, `fluent-logger`.
+ * the official Ruby logger, `fluent-logger`;
+ * the official Java logger, `org.fluentd:fluent-logger`;
+ * the official Go logger, `fluent-logger-golang`, used directly as a test
+   dependency of this module.
 
-The three loggers are baked into small images built from
+Run a single family with `make functional-test-<family>`, where `<family>` is
+one of `fluentbit`, `python`, `javascript`, `ruby`, `java` or `go`:
+
+    make functional-test-python
+
+Apart from the Go client, which speaks plain TCP straight from the test
+process, the clients are baked into small images built from
 `functional/testdata/`. Docker caches the layers, so only the first run of a
-session builds them. Everything needs a Docker daemon; without one the tests
-are skipped.
+session builds them. Those tests need a Docker daemon; without one they are
+skipped.
 
 By default the harness starts the server in-process, on ephemeral ports: a
 single `go test` is enough, and breakpoints in `server/`, `message/` and
